@@ -14,7 +14,7 @@ A web app that drafts FAIS **Records of Advice (ROAs)** for South African financ
 6. **Honest marketing.** No fake testimonials, no customer logos or "trusted by" claims without written permission, no invented statistics. Unbuilt features are labelled "Soon".
 
 ## Architecture in one paragraph
-Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.co.za). The app uses Supabase for auth (magic link or email/password) and `records` + `profiles` tables protected by row level security (each advisor sees only their own rows; `profiles` holds the advisor's name/FSP number/practice name and prefills new records). All AI calls go to the Supabase Edge Function `supabase/functions/ai`, which checks the user's JWT, rate-limits per user, builds the prompt **server-side** (`prompts.ts`), calls the Anthropic Messages API, logs token usage to `ai_usage`, and returns parsed JSON. The Anthropic key exists only as a Supabase secret.
+Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.co.za). The app uses Supabase for email/password auth and `records` + `profiles` tables protected by row level security (each advisor sees only their own rows; `profiles` holds the advisor's name/FSP number/practice name and prefills new records). All AI calls go to the Supabase Edge Function `supabase/functions/ai`, which checks the user's JWT, rate-limits per user, builds the prompt **server-side** (`prompts.ts`), calls the Anthropic Messages API, logs token usage to `ai_usage`, and returns parsed JSON. The Anthropic key exists only as a Supabase secret.
 
 ## Code conventions
 - **No build step** right now: plain HTML, CSS and ES modules. `app/js/app.js` imports `@supabase/supabase-js` from jsDelivr. If you introduce a bundler (e.g. Vite), update `render.yaml` (`buildCommand`, `staticPublishPath`) and `docs/DEPLOYMENT.md` in the same change.
@@ -37,7 +37,7 @@ Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.c
 - Change landing copy → `landing/index.html`. Push to `main`; Render redeploys only the site whose folder changed (`buildFilter`).
 
 ## Testing checklist before shipping app changes
-- Sign up with email + password, sign out, sign back in with the password and with a magic link.
+- Sign up with email + password, sign out, sign back in with the password.
 - Forgot password → reset link → set a new password → lands back in the app.
 - Account screen: save name/FSP number/practice name → new record's advisor/FSP fields are prefilled.
 - New record → Load example → Draft → 13 sections + flagged items appear.

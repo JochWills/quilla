@@ -21,10 +21,18 @@ Order matters: **Supabase → AI function → app config → GitHub → Render �
    This runs the migrations in `supabase/migrations/` (`records` + `ai_usage`, `profiles`, and the explicit Data API grants), all with row level security.
 4. **Auth settings** (Dashboard → Authentication):
    - URL Configuration → **Site URL:** `https://app.quilla.co.za`
-   - **Redirect URLs:** `https://app.quilla.co.za/**` (add `http://localhost:5501/**` for local testing) — used by magic links, sign-up confirmation links and password reset links alike.
-   - Providers → Email: enabled, supports both magic links and email/password. **Confirm email** on means new password sign-ups must click a confirmation link before they can sign in (recommended); off means they're signed in immediately. Optionally turn off "Allow new users to sign up" during the pilot and invite advisors manually.
-   - Emails: set up custom SMTP (e.g. Resend, Postmark) before real users. Supabase's built-in email is heavily rate-limited.
-   - Customise the magic-link email template with the Quilla name.
+   - **Redirect URLs:** `https://app.quilla.co.za/**` (add `http://localhost:5501/**` for local testing) — used by sign-up confirmation links and password reset links.
+   - Providers → Email: enabled, password sign-in. **Confirm email** on means new sign-ups must click a confirmation link before they can sign in (recommended); off means they're signed in immediately. Optionally turn off "Allow new users to sign up" during the pilot and invite advisors manually.
+   - Emails: set up custom SMTP before real users — Supabase's built-in email is heavily rate-limited (a handful an hour) and sends from Supabase's own address, not yours.
+     - **Resend** (free tier: 3,000 emails/month, 100/day — plenty for a pilot) is the easiest way to send as `noreply@quilla.co.za` without running a mailbox:
+       1. Sign up at https://resend.com, add domain `quilla.co.za` (Domains → Add Domain).
+       2. Resend gives you 3–4 DNS records (SPF `TXT`, DKIM `TXT`, and usually a `MX`/`TXT` for the `resend` subdomain used for bounce tracking). Add them at your `.co.za` registrar's DNS, same place as the Render records from step 6. No mailbox is needed — `noreply@` only sends, it never has to receive.
+       3. Wait for Resend to show the domain as **Verified** (DNS propagation, usually minutes to a few hours).
+       4. Create an API key (Resend → API Keys).
+       5. Supabase Dashboard → Authentication → Emails → SMTP Settings → enable custom SMTP:
+          - Host: `smtp.resend.com`, Port: `465`, Username: `resend`, Password: `<the API key>`
+          - Sender email: `noreply@quilla.co.za`, Sender name: `Quilla`
+     - Customise the **Confirm signup** and **Reset password** email templates (Authentication → Emails → Templates) with the Quilla name/wording.
 
 ## 2. The `ai` edge function (Anthropic)
 

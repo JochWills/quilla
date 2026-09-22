@@ -71,7 +71,7 @@ function blank() {
 let S = blank();
 let view = "list"; // list | record | account
 let tab = "notes"; // notes | document | signoff | activity
-let authMode = "signin"; // signin | signup | magiclink | forgot | reset
+let authMode = "signin"; // signin | signup | forgot | reset
 let busy = null; // AbortController for the in-flight AI call
 let session = null;
 let records = []; // list rows: {id, client_name, advice_area, meeting_date, status, updated_at}
@@ -698,29 +698,6 @@ function renderAuth() {
     return;
   }
 
-  if (authMode === "magiclink") {
-    card.innerHTML = `
-      <h1>Email me a link</h1>
-      <p class="note" style="font-size:14.5px">Enter your email and we'll send you a sign-in link. No password needed.</p>
-      <form id="authForm" novalidate>
-        <label class="f" for="a_email">Email address<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
-        <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Send sign-in link</button>
-      </form>
-      <div id="authMsg" aria-live="polite"></div>
-      <p class="note" style="margin-top:16px;text-align:center"><button class="linkbtn" id="toSignin" type="button">Use a password instead</button></p>`;
-    $("#toSignin").addEventListener("click", () => setAuthMode("signin"));
-    $("#authForm").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const email = $("#a_email").value.trim(), msg = $("#authMsg"), btn = $("#authBtn");
-      if (!EMAIL_RE.test(email)) { msg.innerHTML = `<div class="err">Enter a valid email address.</div>`; return; }
-      btn.disabled = true; btn.textContent = "Sending…";
-      const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + "/" + location.search } });
-      btn.disabled = false; btn.textContent = "Send sign-in link";
-      msg.innerHTML = error ? `<div class="err">We couldn't send the link. Check the address and try again.</div>` : `<div class="auth-ok">Check your inbox. We've sent a sign-in link to <b>${esc(email)}</b>.</div>`;
-    });
-    return;
-  }
-
   if (authMode === "forgot") {
     card.innerHTML = `
       <h1>Reset your password</h1>
@@ -756,11 +733,9 @@ function renderAuth() {
     <div id="authMsg" aria-live="polite"></div>
     <div class="auth-links">
       <button class="linkbtn" id="toForgot" type="button">Forgot password?</button>
-      <button class="linkbtn" id="toMagic" type="button">Email me a link instead</button>
     </div>
     <p class="note" style="margin-top:16px;text-align:center">New to Quilla? <button class="linkbtn" id="toSignup" type="button">Create an account</button></p>`;
   $("#toForgot").addEventListener("click", () => setAuthMode("forgot"));
-  $("#toMagic").addEventListener("click", () => setAuthMode("magiclink"));
   $("#toSignup").addEventListener("click", () => setAuthMode("signup"));
   $("#authForm").addEventListener("submit", async (e) => {
     e.preventDefault();

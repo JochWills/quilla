@@ -7,7 +7,7 @@ Browser (advisor)
    │
    └── app.quilla.co.za ──────── Render static site (app/)
           │
-          ├── Supabase Auth ─────── magic-link or email/password sign-in, JWT session
+          ├── Supabase Auth ─────── email/password sign-in, JWT session
           ├── Supabase Postgres ─── tables `records`, `profiles` (RLS: own rows only)
           └── Supabase Edge Function `ai`
                  ├── verifies JWT, rate-limits (table `ai_usage`)
