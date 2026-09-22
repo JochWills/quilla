@@ -2,8 +2,23 @@
 <html lang="en-ZA">
 <head>
 <meta charset="utf-8">
+<script>
+/* Pre-launch gate. Bypass: ?preview=<token>, then remembered via a cookie shared
+   across quilla.co.za and app.quilla.co.za. Not a security boundary — real data
+   access is still governed by Supabase auth/RLS. Rotate the token to revoke access. */
+(function(){
+  var TOKEN="OWqa6KRoOod9", COOKIE="quilla_preview";
+  var params=new URLSearchParams(location.search), key=params.get("preview");
+  function getCookie(n){return document.cookie.split("; ").reduce(function(a,c){var i=c.indexOf("=");return i>-1&&c.slice(0,i)===n?decodeURIComponent(c.slice(i+1)):a},null)}
+  function grant(){document.cookie=COOKIE+"=1; path=/; max-age="+60*60*24*180+"; domain=.quilla.co.za; samesite=lax"+(location.protocol==="https:"?"; secure":"")}
+  if(key===TOKEN){grant()}
+  else if(getCookie(COOKIE)!=="1" && location.pathname!=="/coming-soon.html"){location.replace("/coming-soon.html")}
+  if(key){params.delete("preview");var q=params.toString();history.replaceState(null,"",location.pathname+(q?"?"+q:"")+location.hash)}
+})();
+</script>
 <meta name="color-scheme" content="light">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex"><!-- pre-launch: remove this line when the coming-soon gate comes off -->
 <title>Quilla · From conversation to compliant advice</title>
 <meta name="description" content="Quilla turns meeting transcripts or notes into structured, compliant Records of Advice for South African financial advisors.">
 <link rel="canonical" href="https://quilla.co.za/">
