@@ -747,7 +747,15 @@ function renderAuth() {
     if (error) msg.innerHTML = `<div class="err">Incorrect email or password.</div>`;
   });
 }
+// A same-origin-only session isn't visible to the landing site on quilla.co.za, so on
+// sign-in/out we also set a flag-only cookie (no token) shared across the .quilla.co.za
+// domain, purely so the landing nav can show "Account" instead of "Log in / Get started".
+// This is a UX nicety, not a security boundary: real auth is the Supabase JWT + RLS.
+function cookieDomain() { return location.hostname.endsWith("quilla.co.za") ? "; domain=.quilla.co.za" : ""; }
+function setSignedInCookie() { document.cookie = "quilla_signed_in=1; path=/; max-age=" + 60 * 60 * 24 * 180 + cookieDomain() + "; samesite=lax" + (location.protocol === "https:" ? "; secure" : ""); }
+function clearSignedInCookie() { document.cookie = "quilla_signed_in=; path=/; max-age=0" + cookieDomain() + "; samesite=lax" + (location.protocol === "https:" ? "; secure" : ""); }
 async function startApp() {
+  setSignedInCookie();
   $("#boot").hidden = true; $("#auth").hidden = true; $("#app").hidden = false;
   document.title = "Quilla · Advice records";
   $("#whoami").textContent = session.user.email || "";
@@ -770,5 +778,5 @@ supabase.auth.onAuthStateChange((event, s) => {
   }
   const had = !!session; session = s;
   if (s && !had) startApp();
-  if (!s) { S = blank(); records = []; authMode = "signin"; showAuth(); }
+  if (!s) { S = blank(); records = []; authMode = "signin"; clearSignedInCookie(); showAuth(); }
 });
