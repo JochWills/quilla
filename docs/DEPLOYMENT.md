@@ -7,6 +7,7 @@ Order matters: **Supabase → AI function → app config → GitHub → Render �
 1. Create a project at https://supabase.com.
    - **Region:** there's no South African region. Pick the closest one and record it in the privacy policy (POPIA section 72 covers cross-border transfers).
    - Save the database password somewhere safe.
+   - **Security checkboxes** (Data API section): leave **Enable Data API** on — the app talks to `records` straight from the browser via `supabase-js`. **Automatically expose new tables** and **Enable automatic RLS** can be left at Supabase's defaults either way; `supabase/migrations/20260923010000_data_api_grants.sql` grants/revokes Data API access to `records` and `ai_usage` explicitly, so the app's access doesn't depend on that project-level toggle.
 2. Install the CLI and link the repo:
    ```bash
    npm i -g supabase
@@ -17,11 +18,11 @@ Order matters: **Supabase → AI function → app config → GitHub → Render �
    ```bash
    supabase db push
    ```
-   This runs `supabase/migrations/20260923000000_init.sql` (`records` + `ai_usage`, both with row level security).
+   This runs the migrations in `supabase/migrations/` (`records` + `ai_usage`, `profiles`, and the explicit Data API grants), all with row level security.
 4. **Auth settings** (Dashboard → Authentication):
    - URL Configuration → **Site URL:** `https://app.quilla.co.za`
-   - **Redirect URLs:** `https://app.quilla.co.za/**` (add `http://localhost:5501/**` for local testing)
-   - Providers → Email: enabled (magic links). Optionally turn off "Allow new users to sign up" during the pilot and invite advisors manually.
+   - **Redirect URLs:** `https://app.quilla.co.za/**` (add `http://localhost:5501/**` for local testing) — used by magic links, sign-up confirmation links and password reset links alike.
+   - Providers → Email: enabled, supports both magic links and email/password. **Confirm email** on means new password sign-ups must click a confirmation link before they can sign in (recommended); off means they're signed in immediately. Optionally turn off "Allow new users to sign up" during the pilot and invite advisors manually.
    - Emails: set up custom SMTP (e.g. Resend, Postmark) before real users. Supabase's built-in email is heavily rate-limited.
    - Customise the magic-link email template with the Quilla name.
 
@@ -100,6 +101,9 @@ Render shows the exact values under each service's Custom Domains. Typically:
 
 ## 7. Smoke test after deploy
 - https://quilla.co.za loads; "Get started" goes to https://app.quilla.co.za.
-- Sign in with your email; the magic link returns you to the app.
+- Create an account with email + password; confirm (if required) and sign in.
+- Sign out, then sign back in both ways: password, and "Email me a link instead".
+- Forgot password → reset link → set a new password → lands back in the app.
+- Account screen: save a name/FSP number/practice name, then start a new record and confirm the advisor/FSP fields are prefilled.
 - Load the example meeting and draft it.
-- Supabase → Table Editor → `records` shows your row; `ai_usage` shows the call.
+- Supabase → Table Editor → `records` shows your row; `profiles` shows your details; `ai_usage` shows the AI call.

@@ -64,7 +64,7 @@ a{color:inherit}
 .menu-btn{display:none;background:none;border:1px solid var(--rule-strong);border-radius:7px;padding:6px 10px;cursor:pointer}
 .content{padding:28px 28px 80px;max-width:1280px;width:100%}
 .main{background:#FFFFFF}
-input[type=text],input[type=date],select,textarea{background:var(--paper);border:1px solid var(--rule-strong);border-radius:8px;padding:9px 12px;width:100%;font-size:15px}
+input[type=text],input[type=date],input[type=email],input[type=password],select,textarea{background:var(--paper);border:1px solid var(--rule-strong);border-radius:8px;padding:9px 12px;width:100%;font-size:15px}
 textarea{resize:vertical}
 input:focus,select:focus,textarea:focus{border-color:var(--focus);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 20%,transparent)}
 label.f{display:flex;flex-direction:column;gap:6px;font-weight:500;font-size:13px}
@@ -232,9 +232,8 @@ h3.sub{font-size:15px;font-weight:600;margin:0 0 10px}
 .auth-wrap{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;gap:22px}
 .auth-card{width:100%;max-width:420px;padding:30px 28px}
 .auth-card h1{font-family:var(--serif);font-weight:500;font-size:28px;margin:0 0 6px}
-.auth-card input[type=email]{background:var(--paper);border:1px solid var(--rule-strong);border-radius:8px;padding:10px 12px;width:100%;font-size:15px;margin-top:6px}
-.auth-card input[type=email]:focus{border-color:var(--focus);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 20%,transparent)}
 .auth-ok{background:var(--green-bg);color:var(--green);border-radius:8px;padding:12px 14px;margin-top:14px;font-size:14px}
+.auth-links{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:16px;font-size:13.5px}
 .auth-legal{max-width:420px;text-align:center}
 .side .foot .who{color:var(--muted);font-size:12.5px;word-break:break-all;margin-bottom:4px}
 .boot{position:fixed;inset:0;display:grid;place-items:center;color:var(--faint);font-size:14px}

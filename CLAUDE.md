@@ -14,7 +14,7 @@ A web app that drafts FAIS **Records of Advice (ROAs)** for South African financ
 6. **Honest marketing.** No fake testimonials, no customer logos or "trusted by" claims without written permission, no invented statistics. Unbuilt features are labelled "Soon".
 
 ## Architecture in one paragraph
-Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.co.za). The app uses Supabase for magic-link auth and a `records` table protected by row level security (each advisor sees only their own rows). All AI calls go to the Supabase Edge Function `supabase/functions/ai`, which checks the user's JWT, rate-limits per user, builds the prompt **server-side** (`prompts.ts`), calls the Anthropic Messages API, logs token usage to `ai_usage`, and returns parsed JSON. The Anthropic key exists only as a Supabase secret.
+Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.co.za). The app uses Supabase for auth (magic link or email/password) and `records` + `profiles` tables protected by row level security (each advisor sees only their own rows; `profiles` holds the advisor's name/FSP number/practice name and prefills new records). All AI calls go to the Supabase Edge Function `supabase/functions/ai`, which checks the user's JWT, rate-limits per user, builds the prompt **server-side** (`prompts.ts`), calls the Anthropic Messages API, logs token usage to `ai_usage`, and returns parsed JSON. The Anthropic key exists only as a Supabase secret.
 
 ## Code conventions
 - **No build step** right now: plain HTML, CSS and ES modules. `app/js/app.js` imports `@supabase/supabase-js` from jsDelivr. If you introduce a bundler (e.g. Vite), update `render.yaml` (`buildCommand`, `staticPublishPath`) and `docs/DEPLOYMENT.md` in the same change.
@@ -37,14 +37,16 @@ Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.c
 - Change landing copy → `landing/index.html`. Push to `main`; Render redeploys only the site whose folder changed (`buildFilter`).
 
 ## Testing checklist before shipping app changes
-- Sign in with a magic link; sign out.
+- Sign up with email + password, sign out, sign back in with the password and with a magic link.
+- Forgot password → reset link → set a new password → lands back in the app.
+- Account screen: save name/FSP number/practice name → new record's advisor/FSP fields are prefilled.
 - New record → Load example → Draft → 13 sections + flagged items appear.
 - Improve with AI on one section → Undo works.
 - Resolve an item, Check again → resolved item stays resolved.
 - Sign-off is blocked until declaration, outcome, advisor name and FSP number are filled; critical items require a reason.
 - Export .html and .md.
 - Records list shows the record; reload the page and reopen it.
-- A second test account cannot see the first account's records.
+- A second test account cannot see the first account's records or profile.
 
 ## Don'ts
 - Don't call the Anthropic API from the browser. Don't put secrets in `app/js/config.js` (only the Supabase URL and anon key belong there).

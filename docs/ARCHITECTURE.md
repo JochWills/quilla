@@ -7,8 +7,8 @@ Browser (advisor)
    │
    └── app.quilla.co.za ──────── Render static site (app/)
           │
-          ├── Supabase Auth ─────── magic-link sign-in, JWT session
-          ├── Supabase Postgres ─── table `records` (RLS: own rows only)
+          ├── Supabase Auth ─────── magic-link or email/password sign-in, JWT session
+          ├── Supabase Postgres ─── tables `records`, `profiles` (RLS: own rows only)
           └── Supabase Edge Function `ai`
                  ├── verifies JWT, rate-limits (table `ai_usage`)
                  ├── builds prompt server-side (prompts.ts)
@@ -26,6 +26,7 @@ Browser (advisor)
     - `gaps` [{id, section_id, severity, issue, fix, state: open|addressed|na, note, source: ai|rule}]
     - `signoff` {outcome, declared, override, signedAt, signedBy}
     - `audit` [{at, text}]
+- `profiles` — one row per advisor (`id` = `auth.users.id`, auto-created on sign-up by a trigger): `full_name`, `fsp_number`, `practice_name`. Edited on the Account screen; prefills `meta.adviser`/`meta.fsp` on new records.
 - `ai_usage` — one row per AI call (kind, model, tokens). Service role only.
 
 ## AI endpoint contract
@@ -42,7 +43,7 @@ Errors: `{error: "unauthorized" | "rate_limited" | "bad_request" | "invalid_json
 The client validates and normalises every AI response (`normalizeDraft`, `normGap`) and adds deterministic "rule" gaps for empty required sections, so a bad AI response can't silently skip required content.
 
 ## Security
-- Row level security on `records`: select/insert/update/delete only where `auth.uid() = user_id`.
+- Row level security on `records`: select/insert/update/delete only where `auth.uid() = user_id`. Same pattern on `profiles`, keyed on `auth.uid() = id`.
 - The Anthropic key never leaves Supabase secrets.
 - The `ai` function only accepts the three known kinds and builds prompts itself, so it can't be abused as a general AI proxy.
 - The function logs token counts only, never prompt or response text.

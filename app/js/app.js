@@ -58,18 +58,20 @@ Sarah is happy to open the TFSA now. RA transfer on hold until the Liberty termi
 
 /* ---------------- State ---------------- */
 const today = () => new Date().toISOString().slice(0, 10);
+let profile = { full_name: "", fsp_number: "", practice_name: "" }; // this advisor's saved profile, prefills new records
 function blank() {
   return {
     id: crypto.randomUUID(),
-    meta: { client: "", ref: "", adviser: "", fsp: "", date: today(), area: "Retirement planning" },
+    meta: { client: "", ref: "", adviser: profile.full_name, fsp: profile.fsp_number, date: today(), area: "Retirement planning" },
     notes: "", summary: "", sections: null, gaps: [], replacement: { is_replacement: false, existing_product: "" },
     signoff: { outcome: "", declared: false, override: "", signedAt: null, signedBy: "" },
     status: "draft", audit: [], createdAt: new Date().toISOString(), updatedAt: null,
   };
 }
 let S = blank();
-let view = "list"; // list | record
+let view = "list"; // list | record | account
 let tab = "notes"; // notes | document | signoff | activity
+let authMode = "signin"; // signin | signup | magiclink | forgot | reset
 let busy = null; // AbortController for the in-flight AI call
 let session = null;
 let records = []; // list rows: {id, client_name, advice_area, meeting_date, status, updated_at}
@@ -126,6 +128,16 @@ async function loadRecords() {
   if (!error) records = data || [];
   $("#recCount").textContent = records.length ? String(records.length) : "";
 }
+async function loadProfile() {
+  const { data, error } = await supabase.from("profiles").select("full_name, fsp_number, practice_name").eq("id", session.user.id).single();
+  if (!error && data) profile = data;
+}
+async function saveProfile(next) {
+  const { error } = await supabase.from("profiles").update(next).eq("id", session.user.id);
+  if (error) { toast("Couldn't save your profile. Try again."); return false; }
+  profile = { ...profile, ...next };
+  return true;
+}
 let saveTimer = null, saving = false, saveAgain = false;
 function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 1500); }
 async function save() {
@@ -156,7 +168,47 @@ async function save() {
 /* ---------------- App render ---------------- */
 function renderApp() {
   $("#navRecords").setAttribute("aria-current", view === "list" ? "page" : "false");
-  if (view === "list") renderList(); else renderRecord();
+  $("#navAccount").setAttribute("aria-current", view === "account" ? "page" : "false");
+  if (view === "list") renderList(); else if (view === "account") renderAccount(); else renderRecord();
+}
+
+/* ---------------- Account ---------------- */
+function renderAccount() {
+  $("#content").innerHTML = `
+    <div class="list-head"><div><h1>Account</h1><div class="rec-sub">Used to prefill new records and to sign in.</div></div></div>
+    <div class="card" style="max-width:520px;padding:22px">
+      <h3 class="sub">Profile</h3>
+      <label class="f">Full name<input type="text" id="p_name" autocomplete="name"></label>
+      <label class="f" style="margin-top:12px">FSP number<input type="text" id="p_fsp" inputmode="numeric" autocomplete="off"></label>
+      <label class="f" style="margin-top:12px">Practice name <span class="hint" style="display:inline">(optional)</span><input type="text" id="p_practice" autocomplete="organization"></label>
+      <div class="cap-foot"><button class="btn btn-primary" id="saveProfileBtn">Save profile</button></div>
+    </div>
+    <div class="card" style="max-width:520px;padding:22px;margin-top:18px">
+      <h3 class="sub">Sign-in</h3>
+      <p class="note" style="margin:0 0 14px">${esc(session.user.email || "")}</p>
+      <label class="f">New password<input type="password" id="p_pw1" autocomplete="new-password" minlength="8"></label>
+      <label class="f" style="margin-top:12px">Confirm new password<input type="password" id="p_pw2" autocomplete="new-password" minlength="8"></label>
+      <div class="cap-foot"><button class="btn" id="savePwBtn">Update password</button></div>
+      <div id="pwMsg" aria-live="polite"></div>
+    </div>`;
+  $("#p_name").value = profile.full_name || ""; $("#p_fsp").value = profile.fsp_number || ""; $("#p_practice").value = profile.practice_name || "";
+  $("#saveProfileBtn").addEventListener("click", async () => {
+    const btn = $("#saveProfileBtn"); btn.disabled = true; btn.textContent = "Saving…";
+    const ok = await saveProfile({ full_name: $("#p_name").value.trim(), fsp_number: $("#p_fsp").value.trim(), practice_name: $("#p_practice").value.trim() });
+    btn.disabled = false; btn.textContent = "Save profile";
+    if (ok) toast("Profile saved");
+  });
+  $("#savePwBtn").addEventListener("click", async () => {
+    const msg = $("#pwMsg"), p1 = $("#p_pw1").value, p2 = $("#p_pw2").value, btn = $("#savePwBtn");
+    if (p1.length < 8) { msg.innerHTML = `<div class="err">Password must be at least 8 characters.</div>`; return; }
+    if (p1 !== p2) { msg.innerHTML = `<div class="err">Passwords don't match.</div>`; return; }
+    btn.disabled = true; btn.textContent = "Saving…";
+    const { error } = await supabase.auth.updateUser({ password: p1 });
+    btn.disabled = false; btn.textContent = "Update password";
+    if (error) { msg.innerHTML = `<div class="err">Couldn't update your password. Try again.</div>`; return; }
+    $("#p_pw1").value = ""; $("#p_pw2").value = ""; msg.innerHTML = "";
+    toast("Password updated");
+  });
 }
 
 /* ---------------- Records list ---------------- */
@@ -578,28 +630,153 @@ function closeSide() { $("#side").classList.remove("open"); $("#menuBtn").setAtt
 $("#menuBtn").addEventListener("click", () => { const o = $("#side").classList.toggle("open"); $("#menuBtn").setAttribute("aria-expanded", String(o)); });
 $("#newRec").addEventListener("click", newRecord);
 $("#navRecords").addEventListener("click", async () => { if (busy) return; if (dirty) await save(); view = "list"; renderApp(); closeSide(); });
+$("#navAccount").addEventListener("click", async () => { if (busy) return; if (dirty) await save(); view = "account"; renderApp(); closeSide(); });
 $("#searchBox").addEventListener("input", async (e) => { query = e.target.value; if (view !== "list") { if (busy) return; if (dirty) await save(); view = "list"; } renderApp(); });
 $("#signOut").addEventListener("click", async () => { if (dirty) await save(); await supabase.auth.signOut(); });
 window.addEventListener("beforeunload", (e) => { if (dirty) { save(); e.preventDefault(); } });
 
 /* ---------------- Auth ---------------- */
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function showAuth() {
   $("#boot").hidden = true; $("#app").hidden = true; $("#auth").hidden = false;
   document.title = "Sign in · Quilla";
+  renderAuth();
 }
-$("#authForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const email = $("#authEmail").value.trim(); const msg = $("#authMsg"); const btn = $("#authBtn");
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { msg.innerHTML = `<div class="err">Enter a valid email address.</div>`; return; }
-  btn.disabled = true; btn.textContent = "Sending…";
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + "/" + location.search } });
-  btn.disabled = false; btn.textContent = "Send sign-in link";
-  msg.innerHTML = error ? `<div class="err">We couldn't send the link. Check the address and try again.</div>` : `<div class="auth-ok">Check your inbox. We've sent a sign-in link to <b>${esc(email)}</b>.</div>`;
-});
+function setAuthMode(mode) { authMode = mode; renderAuth(); }
+function renderAuth() {
+  const card = $("#authCard");
+
+  if (authMode === "reset") {
+    card.innerHTML = `
+      <h1>Set a new password</h1>
+      <p class="note" style="font-size:14.5px">Choose a new password for your account.</p>
+      <form id="authForm" novalidate>
+        <label class="f" for="a_pw1">New password<input type="password" id="a_pw1" autocomplete="new-password" required minlength="8"></label>
+        <label class="f" for="a_pw2" style="margin-top:12px">Confirm new password<input type="password" id="a_pw2" autocomplete="new-password" required minlength="8"></label>
+        <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Set password</button>
+      </form>
+      <div id="authMsg" aria-live="polite"></div>`;
+    $("#authForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const p1 = $("#a_pw1").value, p2 = $("#a_pw2").value, msg = $("#authMsg"), btn = $("#authBtn");
+      if (p1.length < 8) { msg.innerHTML = `<div class="err">Password must be at least 8 characters.</div>`; return; }
+      if (p1 !== p2) { msg.innerHTML = `<div class="err">Passwords don't match.</div>`; return; }
+      btn.disabled = true; btn.textContent = "Saving…";
+      const { error } = await supabase.auth.updateUser({ password: p1 });
+      btn.disabled = false; btn.textContent = "Set password";
+      if (error) { msg.innerHTML = `<div class="err">Couldn't update your password. Try again.</div>`; return; }
+      toast("Password updated"); startApp();
+    });
+    return;
+  }
+
+  if (authMode === "signup") {
+    card.innerHTML = `
+      <h1>Create your account</h1>
+      <p class="note" style="font-size:14.5px">Set up sign-in for your practice.</p>
+      <form id="authForm" novalidate>
+        <label class="f" for="a_email">Email address<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
+        <label class="f" for="a_pw1" style="margin-top:12px">Password<input type="password" id="a_pw1" autocomplete="new-password" required minlength="8"></label>
+        <label class="f" for="a_pw2" style="margin-top:12px">Confirm password<input type="password" id="a_pw2" autocomplete="new-password" required minlength="8"></label>
+        <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Create account</button>
+      </form>
+      <div id="authMsg" aria-live="polite"></div>
+      <p class="note" style="margin-top:16px;text-align:center">Already have an account? <button class="linkbtn" id="toSignin" type="button">Sign in</button></p>`;
+    $("#toSignin").addEventListener("click", () => setAuthMode("signin"));
+    $("#authForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = $("#a_email").value.trim(), p1 = $("#a_pw1").value, p2 = $("#a_pw2").value, msg = $("#authMsg"), btn = $("#authBtn");
+      if (!EMAIL_RE.test(email)) { msg.innerHTML = `<div class="err">Enter a valid email address.</div>`; return; }
+      if (p1.length < 8) { msg.innerHTML = `<div class="err">Password must be at least 8 characters.</div>`; return; }
+      if (p1 !== p2) { msg.innerHTML = `<div class="err">Passwords don't match.</div>`; return; }
+      btn.disabled = true; btn.textContent = "Creating…";
+      const { data, error } = await supabase.auth.signUp({ email, password: p1, options: { emailRedirectTo: location.origin + "/" + location.search } });
+      btn.disabled = false; btn.textContent = "Create account";
+      if (error) { msg.innerHTML = `<div class="err">${error.message.includes("registered") ? "That email is already registered. Try signing in instead." : "Couldn't create the account. Try again."}</div>`; return; }
+      if (!data.session) msg.innerHTML = `<div class="auth-ok">Check your inbox. We've sent a confirmation link to <b>${esc(email)}</b>.</div>`;
+    });
+    return;
+  }
+
+  if (authMode === "magiclink") {
+    card.innerHTML = `
+      <h1>Email me a link</h1>
+      <p class="note" style="font-size:14.5px">Enter your email and we'll send you a sign-in link. No password needed.</p>
+      <form id="authForm" novalidate>
+        <label class="f" for="a_email">Email address<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
+        <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Send sign-in link</button>
+      </form>
+      <div id="authMsg" aria-live="polite"></div>
+      <p class="note" style="margin-top:16px;text-align:center"><button class="linkbtn" id="toSignin" type="button">Use a password instead</button></p>`;
+    $("#toSignin").addEventListener("click", () => setAuthMode("signin"));
+    $("#authForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = $("#a_email").value.trim(), msg = $("#authMsg"), btn = $("#authBtn");
+      if (!EMAIL_RE.test(email)) { msg.innerHTML = `<div class="err">Enter a valid email address.</div>`; return; }
+      btn.disabled = true; btn.textContent = "Sending…";
+      const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: location.origin + "/" + location.search } });
+      btn.disabled = false; btn.textContent = "Send sign-in link";
+      msg.innerHTML = error ? `<div class="err">We couldn't send the link. Check the address and try again.</div>` : `<div class="auth-ok">Check your inbox. We've sent a sign-in link to <b>${esc(email)}</b>.</div>`;
+    });
+    return;
+  }
+
+  if (authMode === "forgot") {
+    card.innerHTML = `
+      <h1>Reset your password</h1>
+      <p class="note" style="font-size:14.5px">Enter your email and we'll send you a password reset link.</p>
+      <form id="authForm" novalidate>
+        <label class="f" for="a_email">Email address<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
+        <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Send reset link</button>
+      </form>
+      <div id="authMsg" aria-live="polite"></div>
+      <p class="note" style="margin-top:16px;text-align:center"><button class="linkbtn" id="toSignin" type="button">Back to sign in</button></p>`;
+    $("#toSignin").addEventListener("click", () => setAuthMode("signin"));
+    $("#authForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = $("#a_email").value.trim(), msg = $("#authMsg"), btn = $("#authBtn");
+      if (!EMAIL_RE.test(email)) { msg.innerHTML = `<div class="err">Enter a valid email address.</div>`; return; }
+      btn.disabled = true; btn.textContent = "Sending…";
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.origin + "/" + location.search });
+      btn.disabled = false; btn.textContent = "Send reset link";
+      msg.innerHTML = error ? `<div class="err">We couldn't send the link. Check the address and try again.</div>` : `<div class="auth-ok">Check your inbox for a link to reset your password for <b>${esc(email)}</b>.</div>`;
+    });
+    return;
+  }
+
+  // default: signin
+  card.innerHTML = `
+    <h1>Sign in to Quilla</h1>
+    <p class="note" style="font-size:14.5px">Enter your email and password.</p>
+    <form id="authForm" novalidate>
+      <label class="f" for="a_email">Email address<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
+      <label class="f" for="a_pw1" style="margin-top:12px">Password<input type="password" id="a_pw1" autocomplete="current-password" required></label>
+      <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Sign in</button>
+    </form>
+    <div id="authMsg" aria-live="polite"></div>
+    <div class="auth-links">
+      <button class="linkbtn" id="toForgot" type="button">Forgot password?</button>
+      <button class="linkbtn" id="toMagic" type="button">Email me a link instead</button>
+    </div>
+    <p class="note" style="margin-top:16px;text-align:center">New to Quilla? <button class="linkbtn" id="toSignup" type="button">Create an account</button></p>`;
+  $("#toForgot").addEventListener("click", () => setAuthMode("forgot"));
+  $("#toMagic").addEventListener("click", () => setAuthMode("magiclink"));
+  $("#toSignup").addEventListener("click", () => setAuthMode("signup"));
+  $("#authForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = $("#a_email").value.trim(), pw = $("#a_pw1").value, msg = $("#authMsg"), btn = $("#authBtn");
+    if (!EMAIL_RE.test(email)) { msg.innerHTML = `<div class="err">Enter a valid email address.</div>`; return; }
+    btn.disabled = true; btn.textContent = "Signing in…";
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
+    btn.disabled = false; btn.textContent = "Sign in";
+    if (error) msg.innerHTML = `<div class="err">Incorrect email or password.</div>`;
+  });
+}
 async function startApp() {
   $("#boot").hidden = true; $("#auth").hidden = true; $("#app").hidden = false;
   document.title = "Quilla · Advice records";
   $("#whoami").textContent = session.user.email || "";
+  await loadProfile();
   await loadRecords();
   const params = new URLSearchParams(location.search);
   if (params.get("example") === "1") {
@@ -609,8 +786,14 @@ async function startApp() {
     view = "list"; renderApp();
   }
 }
-supabase.auth.onAuthStateChange((_event, s) => {
+supabase.auth.onAuthStateChange((event, s) => {
+  if (event === "PASSWORD_RECOVERY") {
+    session = s; authMode = "reset";
+    $("#boot").hidden = true; $("#app").hidden = true; $("#auth").hidden = false;
+    document.title = "Set password · Quilla"; renderAuth();
+    return;
+  }
   const had = !!session; session = s;
   if (s && !had) startApp();
-  if (!s) { S = blank(); records = []; showAuth(); }
+  if (!s) { S = blank(); records = []; authMode = "signin"; showAuth(); }
 });
