@@ -1,0 +1,5 @@
+project_id = "quilla"
+
+# Minimal Supabase CLI config for Quilla. Run `supabase link --project-ref <ref>` before deploying.
+[functions.ai]
+verify_jwt = true

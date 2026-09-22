@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="light">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Quilla · Advice records</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Newsreader:opsz,wght@6..72,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+<!-- Sign-in screen -->
+<div id="auth" hidden>
+  <div class="auth-wrap">
+    <a class="logo" href="https://quilla.co.za">Quilla</a>
+    <div class="card auth-card">
+      <h1>Sign in to Quilla</h1>
+      <p class="note" style="font-size:14.5px">Enter your work email and we'll send you a secure sign-in link. No password needed.</p>
+      <form id="authForm" novalidate>
+        <label class="f" for="authEmail">Email address</label>
+        <input type="email" id="authEmail" autocomplete="email" required placeholder="you@yourpractice.co.za">
+        <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Send sign-in link</button>
+      </form>
+      <div id="authMsg" aria-live="polite"></div>
+    </div>
+    <p class="note auth-legal">By signing in you agree to our <a href="https://quilla.co.za/terms.html">Terms</a> and <a href="https://quilla.co.za/privacy.html">Privacy policy</a>.</p>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" hidden>
+  <div class="app-shell">
+    <aside class="side" id="side" aria-label="Quilla navigation">
+      <a class="logo" href="https://quilla.co.za">Quilla</a>
+      <button class="btn btn-primary btn-sm newbtn" id="newRec"><svg class="arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>New record</button>
+      <button class="nav-item" id="navRecords"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>Advice records<span class="count" id="recCount"></span></button>
+      <button class="nav-item" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>Clients<span class="soon">Soon</span></button>
+      <button class="nav-item" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>Meetings<span class="soon">Soon</span></button>
+      <button class="nav-item" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 10v10"/></svg>Templates<span class="soon">Soon</span></button>
+      <button class="nav-item" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Compliance<span class="soon">Soon</span></button>
+      <div class="foot">
+        <div class="who" id="whoami"></div>
+        <button class="linkbtn" id="signOut" style="font-size:12.5px">Sign out</button>
+        <p style="margin:10px 0 0">Quilla documents your advice. It never recommends products, and you remain responsible for each record.</p>
+      </div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <button class="menu-btn" id="menuBtn" aria-label="Open navigation" aria-controls="side" aria-expanded="false">☰</button>
+        <div class="search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input type="text" id="searchBox" placeholder="Search clients, records…" aria-label="Search records"></div>
+        <span class="savestate" id="savestate" aria-live="polite"></span>
+      </div>
+      <div class="content" id="content"></div>
+    </div>
+  </div>
+</div>
+
+<div class="boot" id="boot">Loading…</div>
+<div class="toast" id="toast" role="status"></div>
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>
