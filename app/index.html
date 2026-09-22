@@ -12,7 +12,7 @@
   function getCookie(n){return document.cookie.split("; ").reduce(function(a,c){var i=c.indexOf("=");return i>-1&&c.slice(0,i)===n?decodeURIComponent(c.slice(i+1)):a},null)}
   function grant(){document.cookie=COOKIE+"=1; path=/; max-age="+60*60*24*180+"; domain=.quilla.co.za; samesite=lax"+(location.protocol==="https:"?"; secure":"")}
   if(key===TOKEN){grant()}
-  else if(getCookie(COOKIE)!=="1"){location.replace("https://quilla.co.za/coming-soon.html")}
+  else if(getCookie(COOKIE)!=="1"){location.replace("https://quilla.co.za/coming-soon")}
   if(key){params.delete("preview");var q=params.toString();history.replaceState(null,"",location.pathname+(q?"?"+q:"")+location.hash)}
 })();
 </script>
@@ -42,7 +42,7 @@
       </form>
       <div id="authMsg" aria-live="polite"></div>
     </div>
-    <p class="note auth-legal">By signing in you agree to our <a href="https://quilla.co.za/terms.html">Terms</a> and <a href="https://quilla.co.za/privacy.html">Privacy policy</a>.</p>
+    <p class="note auth-legal">By signing in you agree to our <a href="https://quilla.co.za/terms">Terms</a> and <a href="https://quilla.co.za/privacy">Privacy policy</a>.</p>
   </div>
 </div>
 

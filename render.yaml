@@ -13,6 +13,16 @@ services:
     buildFilter:
       paths:
         - landing/**
+    routes:
+      - type: rewrite
+        source: /privacy
+        destination: /privacy.html
+      - type: rewrite
+        source: /terms
+        destination: /terms.html
+      - type: rewrite
+        source: /coming-soon
+        destination: /coming-soon.html
     headers:
       - path: /*
         name: X-Frame-Options

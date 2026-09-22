@@ -23,6 +23,7 @@ Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.c
 - Record state shape lives in `blank()` in `app/js/app.js`. If you change it, keep old records loadable (records are stored as JSON in `records.data`).
 - Spelling in UI copy: "advisor" (matches the brand design). Use South African conventions: rand as "R", dates like "21 Sep 2026".
 - Accessibility: real buttons and labels, visible focus, `aria-live` for status messages, respect `prefers-reduced-motion`.
+- **No `.html` in links.** Every landing page (other than `index.html` and `404.html`, which are served specially) gets a matching rewrite rule in `render.yaml` under `quilla-landing`'s `routes` (e.g. `source: /privacy` → `destination: /privacy.html`), and every internal link, canonical tag, og:url and sitemap entry points at the extension-less path. When adding a new static page, add the file as normal, add its rewrite rule, and link to it without `.html`.
 
 ## Design system
 - Light theme only (white background). Tokens are CSS variables at the top of `landing/assets/site.css` and `app/styles.css` — keep both in sync.

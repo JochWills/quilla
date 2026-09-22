@@ -12,7 +12,7 @@
   function getCookie(n){return document.cookie.split("; ").reduce(function(a,c){var i=c.indexOf("=");return i>-1&&c.slice(0,i)===n?decodeURIComponent(c.slice(i+1)):a},null)}
   function grant(){document.cookie=COOKIE+"=1; path=/; max-age="+60*60*24*180+"; domain=.quilla.co.za; samesite=lax"+(location.protocol==="https:"?"; secure":"")}
   if(key===TOKEN){grant()}
-  else if(getCookie(COOKIE)!=="1" && location.pathname!=="/coming-soon.html"){location.replace("/coming-soon.html")}
+  else if(getCookie(COOKIE)!=="1" && location.pathname!=="/coming-soon"){location.replace("/coming-soon")}
   if(key){params.delete("preview");var q=params.toString();history.replaceState(null,"",location.pathname+(q?"?"+q:"")+location.hash)}
 })();
 </script>
@@ -258,8 +258,8 @@
       <a href="#product">Product</a>
       <a href="#pricing">Pricing</a>
       <a href="#faq">FAQ</a>
-      <a href="/privacy.html">Privacy</a>
-      <a href="/terms.html">Terms</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
       <a href="https://app.quilla.co.za/">Log in</a>
     </nav>
     <span class="copy">© 2026 Quilla. All rights reserved.</span>
