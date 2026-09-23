@@ -7,6 +7,7 @@
 
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+import { buildPdf, buildDocx } from "./export.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // The landing site's "Sign out" link (no session of its own) points here with ?signout=1.
@@ -68,9 +69,9 @@ let profile = { full_name: "", fsp_number: "", practice_name: "" }; // this advi
 function blank() {
   return {
     id: crypto.randomUUID(),
-    meta: { client: "", ref: "", adviser: profile.full_name, fsp: profile.fsp_number, date: today(), area: "Retirement planning" },
+    meta: { client: "", ref: "", adviser: profile.full_name, fsp: profile.fsp_number, practice: profile.practice_name, date: today(), area: "Retirement planning" },
     notes: "", summary: "", sections: null, gaps: [], replacement: { is_replacement: false, existing_product: "" },
-    signoff: { outcome: "", declared: false, override: "", signedAt: null, signedBy: "" },
+    signoff: { outcome: "", declared: false, override: "", signedAt: null, signedBy: "", version: null, sha256: "", sealedAt: null },
     status: "draft", audit: [], createdAt: new Date().toISOString(), updatedAt: null,
   };
 }
@@ -117,6 +118,8 @@ function fmtDate(s) { if (!s) return "—"; const d = new Date(s + "T00:00:00");
 function gid() { return "g" + Math.random().toString(36).slice(2, 9); }
 function autosize(t) { t.style.height = "auto"; t.style.height = (t.scrollHeight + 2) + "px"; }
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// A signed record is read-only until it's reopened; its sealed version lives in record_versions.
+const locked = () => S.status === "signed";
 function statusOf(r) { return r.status === "signed" ? "signed" : (r.sections ? "draft" : "notes"); }
 const STATUS_LABEL = { signed: "Signed off", draft: "Draft", notes: "Notes only" };
 function errCopy(code) {
@@ -167,6 +170,9 @@ async function saveProfile(next) {
   profile = { ...profile, ...next };
   return true;
 }
+function rowOf(r) {
+  return { id: r.id, client_name: r.meta.client || "", advice_area: r.meta.area || "", meeting_date: r.meta.date || null, status: statusOf(r), data: r };
+}
 let saveTimer = null, saving = false, saveAgain = false;
 function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 1500); }
 async function save() {
@@ -174,14 +180,7 @@ async function save() {
   if (!S.notes.trim() && !S.sections) return;
   if (saving) { saveAgain = true; return; }
   saving = true; $("#savestate").textContent = "Saving…";
-  const row = {
-    id: S.id,
-    client_name: S.meta.client || "",
-    advice_area: S.meta.area || "",
-    meeting_date: S.meta.date || null,
-    status: statusOf(S),
-    data: S,
-  };
+  const row = rowOf(S);
   const { error } = await supabase.from("records").upsert(row);
   if (error) { $("#savestate").textContent = "Not saved"; console.error(error); }
   else {
@@ -319,12 +318,20 @@ function renderRecord() {
       <button class="tab" role="tab" data-tab="signoff" aria-selected="${tab === "signoff"}" ${has ? "" : "disabled"}>Sign-off</button>
       <button class="tab" role="tab" data-tab="activity" aria-selected="${tab === "activity"}">Activity</button>
     </div>
+    ${locked() ? lockedBar() : ""}
     <div id="tabBody"></div>`;
+  const rb = $("#reopenBar"); if (rb) rb.addEventListener("click", reopenRecord);
   $("#content").querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => { if (b.disabled || busy) return; tab = b.dataset.tab; renderRecord(); }));
   if (tab === "document" && has) renderDocument();
   else if (tab === "signoff" && has) renderSignoff();
   else if (tab === "activity") renderActivity();
   else { tab = "notes"; renderNotes(); }
+}
+function lockedBar() {
+  const so = S.signoff;
+  return `<div class="locked-bar" role="status"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    <div><b>${so.version ? `Signed and sealed as version ${so.version}` : "Signed off"}</b> on ${esc(fmtTime(so.sealedAt || so.signedAt))}. This record is read-only.</div>
+    <button class="btn btn-sm" id="reopenBar">Reopen for editing</button></div>`;
 }
 function refreshTabBadge() {
   const b = $('[data-tab="document"]'); if (!b || !S.sections) return;
@@ -354,8 +361,8 @@ function renderNotes() {
       <label class="f" for="notes" style="margin-top:18px">Meeting notes or transcript <span class="hint">Include what the client said, what you considered, what you recommended and why, and the fees you disclosed.</span></label>
       <textarea id="notes" placeholder="Meeting with the client on…"></textarea>
       <div class="cap-foot">
-        <button class="btn btn-primary" id="draftBtn">${S.sections ? "Draft again" : "Draft the record"}</button>
-        <button class="btn" id="exampleBtn">Load an example meeting</button>
+        ${locked() ? "" : `<button class="btn btn-primary" id="draftBtn">${S.sections ? "Draft again" : "Draft the record"}</button>
+        <button class="btn" id="exampleBtn">Load an example meeting</button>`}
         <span class="note count" id="count"></span>
       </div>
       <div id="capStatus"></div>
@@ -376,6 +383,7 @@ function renderNotes() {
   const n = $("#notes"); n.value = S.notes;
   const upd = () => { const w = S.notes.trim() ? S.notes.trim().split(/\s+/).length : 0; $("#count").textContent = w ? `${w} words` : ""; };
   n.addEventListener("input", () => { S.notes = n.value; dirty = true; upd(); scheduleSave(); }); upd();
+  if (locked()) { $("#tabBody").querySelectorAll("input, select, textarea").forEach((el) => { el.disabled = true; }); return; }
   $("#exampleBtn").addEventListener("click", async () => { if (S.notes.trim() && !(await confirmBox({ title: "Replace your notes?", body: "Your current notes will be replaced with the example meeting.", confirmLabel: "Replace notes" }))) return; loadExample(); });
   $("#draftBtn").addEventListener("click", () => draft(!!S.sections));
   if (S.sections) $("#capStatus").innerHTML = `<p class="note" style="margin-top:12px">Drafting again replaces the sections and flagged items, and clears any sign-off.</p>`;
@@ -431,7 +439,8 @@ async function draft(again) {
 
 /* ---------------- Document tab ---------------- */
 function renderDocument() {
-  $("#recActions").innerHTML = `<button class="btn btn-sm" id="recheckBtn">Check again</button><button class="btn btn-primary btn-sm" id="toSign">Continue to sign-off</button>`;
+  const ro = locked();
+  $("#recActions").innerHTML = ro ? `<button class="btn btn-sm" id="toSign">View sign-off and exports</button>` : `<button class="btn btn-sm" id="recheckBtn">Check again</button><button class="btn btn-primary btn-sm" id="toSign">Continue to sign-off</button>`;
   $("#tabBody").innerHTML = `
   <div id="recheckStatus"></div>
   <div class="doc-grid">
@@ -442,10 +451,10 @@ function renderDocument() {
     const s = S.sections[id]; const na = id === "replacement" && !S.replacement.is_replacement && s.status === "not_captured";
     return `<section class="sec-card" id="sec-${id}" data-state="${na ? "captured" : s.status}">
       <div class="sec-card-h"><span class="num">${i + 1}</span><h3>${esc(title)}</h3><span class="pill" id="pill-${id}"></span>
-        <div class="sec-tools"><button class="improve" data-improve="${id}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>Improve with AI</button></div>
+        <div class="sec-tools">${ro ? "" : `<button class="improve" data-improve="${id}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>Improve with AI</button>`}</div>
       </div>
       ${s.status === "not_captured" && !na ? `<p class="sec-hint">${esc(hint)}</p>` : ""}
-      <div class="sec-body"><textarea data-sec="${id}" aria-label="${esc(title)}" rows="2" placeholder="${na ? "Not applicable: no existing product is being replaced." : "Not captured in the notes. Add it here or resolve the flagged item."}"></textarea></div>
+      <div class="sec-body"><textarea data-sec="${id}" aria-label="${esc(title)}" rows="2" ${ro ? "readonly" : ""} placeholder="${na ? "Not applicable: no existing product is being replaced." : "Not captured in the notes. Add it here or resolve the flagged item."}"></textarea></div>
       ${s.evidence.length ? `<div class="evidence">From your notes: ${s.evidence.map((q) => `<q>${esc(q)}</q>`).join(" · ")}</div>` : ""}
       <div class="sec-msg" id="msg-${id}" aria-live="polite"></div>
     </section>`;
@@ -459,7 +468,7 @@ function renderDocument() {
   $("#secs").querySelectorAll("[data-improve]").forEach((b) => b.addEventListener("click", () => improve(b.dataset.improve)));
   renderMargin();
   $("#toSign").addEventListener("click", () => { tab = "signoff"; renderRecord(); window.scrollTo(0, 0); });
-  $("#recheckBtn").addEventListener("click", recheck);
+  if (!ro) $("#recheckBtn").addEventListener("click", recheck);
 }
 function syncImprove(id) { const b = document.querySelector(`[data-improve="${id}"]`); if (b) b.disabled = !S.sections[id].content.trim() || !!busy; }
 function setPill(id) {
@@ -509,6 +518,9 @@ function renderMargin() {
 }
 function gapCard(g) {
   const r = g.state !== "open";
+  if (locked()) return `<div class="gap ${r ? "resolved" : g.severity}" id="gap-${g.id}">
+    <div class="g-sec"><span class="g-sev">${r ? (g.state === "addressed" ? "Addressed" : "Not applicable") : SEV_LABEL[g.severity]}</span><button class="linkbtn" data-jump="${g.section_id}" style="font-size:12px">${esc(SEC_TITLE[g.section_id])}</button></div>
+    <p>${esc(g.issue)}</p>${r ? `<div class="res-note">${esc(g.note)}</div>` : ""}</div>`;
   return `<div class="gap ${r ? "resolved" : g.severity}" id="gap-${g.id}">
     <div class="g-sec"><span class="g-sev">${r ? (g.state === "addressed" ? "Addressed" : "Not applicable") : SEV_LABEL[g.severity]}</span><button class="linkbtn" data-jump="${g.section_id}" style="font-size:12px">${esc(SEC_TITLE[g.section_id])}</button></div>
     <p>${esc(g.issue)}</p>${!r && g.fix ? `<p class="fix">${esc(g.fix)}</p>` : ""}
@@ -583,13 +595,14 @@ function renderSignoff() {
       </label>
       <div id="overrideWrap"></div>
       <label class="declare"><input type="checkbox" id="s_declare" ${so.declared ? "checked" : ""} ${signed ? "disabled" : ""}><span>I confirm this record accurately reflects the information considered, the products considered and the advice I gave, and that I am responsible for its content.</span></label>
-      <div class="cap-foot">${signed ? `<button class="btn" id="unsign">Reopen for editing</button>` : `<button class="btn btn-primary" id="signBtn">Sign off record</button><button class="btn" id="backDoc">Back to document</button>`}</div>
-      ${signed ? `<div class="signed" role="status"><b>Signed off</b> by ${esc(so.signedBy)} on ${esc(fmtTime(so.signedAt))}.</div>` : ""}
+      <div class="cap-foot">${signed ? `<button class="btn" id="unsign">Reopen for editing</button>` : `<button class="btn btn-primary" id="signBtn">Sign off and seal</button><button class="btn" id="backDoc">Back to document</button>`}</div>
+      ${signed ? `<div class="signed" role="status"><b>Signed off</b> by ${esc(so.signedBy)} on ${esc(fmtTime(so.signedAt))}.${so.version ? `<div class="seal-line">Sealed as version ${so.version}. Fingerprint <code class="fp">${esc(so.sha256.slice(0, 16))}…</code></div>` : ""}</div>` : `<p class="note" style="margin:12px 0 0">Signing seals a read-only copy of the record. To change it later you reopen it, and the next sign-off becomes a new version.</p>`}
       <h3 class="sub" style="margin-top:26px">Export</h3>
-      <p class="note" style="margin:0">Includes the record, your sign-off, how each flagged item was resolved and the full history, ready for the client file.</p>
-      <div class="exports"><button class="btn btn-sm" id="exHtml">Download for Word (.html)</button><button class="btn btn-sm" id="exMd">Download as text (.md)</button></div>
+      <p class="note" style="margin:0">${signed && so.version ? `Exports version ${so.version} exactly as sealed` : "Exports the current draft, marked as not signed"}: the record, your sign-off, how each flagged item was resolved and the full history, ready for the client file.</p>
+      <div class="exports"><button class="btn btn-sm btn-primary" data-export="pdf">Download PDF</button><button class="btn btn-sm" data-export="docx">Download Word (.docx)</button><button class="btn btn-sm" data-export="md">Text (.md)</button></div>
     </section>
-    <aside class="card"><h3 class="sub">Recent activity</h3><ul class="audit">${S.audit.slice(-6).reverse().map((a) => `<li><time datetime="${esc(a.at)}">${esc(fmtTime(a.at))}</time><span>${esc(a.text)}</span></li>`).join("") || `<li><span class="note">No activity yet.</span></li>`}</ul></aside>
+    <aside class="card"><h3 class="sub">Sealed versions</h3><div id="versions"><p class="note">Loading…</p></div>
+      <h3 class="sub" style="margin-top:22px">Recent activity</h3><ul class="audit">${S.audit.slice(-6).reverse().map((a) => `<li><time datetime="${esc(a.at)}">${esc(fmtTime(a.at))}</time><span>${esc(a.text)}</span></li>`).join("") || `<li><span class="note">No activity yet.</span></li>`}</ul></aside>
   </div>`;
   const a = $("#s_adviser"), f = $("#s_fsp"); a.value = m.adviser; f.value = m.fsp;
   const rerender = () => { clearTimeout(renderSignoff._t); renderSignoff._t = setTimeout(() => { const id = document.activeElement?.id, pos = document.activeElement?.selectionStart; renderSignoff(); if (id) { const el = $("#" + id); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (_) { /* not a text field */ } } } }, 500); };
@@ -602,18 +615,55 @@ function renderSignoff() {
     const o = $("#s_override"); o.value = so.override; o.addEventListener("input", () => { so.override = o.value; updateSignBtn(); });
   }
   if (!signed) { $("#signBtn").addEventListener("click", signOff); $("#backDoc").addEventListener("click", () => { tab = "document"; renderRecord(); }); updateSignBtn(); }
-  else $("#unsign").addEventListener("click", async () => { if (!(await confirmBox({ title: "Reopen this record?", body: "The sign-off will be removed so you can edit. You'll need to sign it again, and this is logged in the record's history.", confirmLabel: "Reopen record" }))) return; S.status = "draft"; so.signedAt = null; so.declared = false; log("Sign-off removed to edit the record"); save(); renderRecord(); });
-  $("#exHtml").addEventListener("click", () => exportFile("html"));
-  $("#exMd").addEventListener("click", () => exportFile("md"));
+  else $("#unsign").addEventListener("click", reopenRecord);
+  $("#tabBody").querySelectorAll("[data-export]").forEach((b) => b.addEventListener("click", () => exportRecord(b.dataset.export, null, b)));
+  renderVersions();
 }
 function signReady() { const c = gapCounts(), so = S.signoff, m = S.meta; return so.declared && so.outcome && m.adviser.trim() && m.fsp.trim() && emptyRequired().length === 0 && (c.crit === 0 || so.override.trim().length >= 15); }
 function updateSignBtn() { const b = $("#signBtn"); if (b) b.disabled = !signReady(); }
-function signOff() {
-  if (!signReady()) return; const so = S.signoff, c = gapCounts();
+// Signing seals an immutable snapshot in record_versions. The database assigns the
+// version number, sealing time and SHA-256 fingerprint; nothing is signed unless that succeeds.
+async function signOff() {
+  if (!signReady() || busy) return;
+  const so = S.signoff, c = gapCounts(), btn = $("#signBtn");
+  busy = new AbortController(); btn.disabled = true; btn.textContent = "Sealing…";
+  const before = JSON.stringify({ signoff: so, status: S.status, audit: S.audit, practice: S.meta.practice });
+  const fail = (msg) => { const b = JSON.parse(before); Object.assign(so, b.signoff); S.status = b.status; S.audit = b.audit; S.meta.practice = b.practice; busy = null; renderRecord(); toast(msg); };
+  // The records row must exist (and be current) before a version can reference it.
+  clearTimeout(saveTimer);
+  const { error: rowErr } = await supabase.from("records").upsert(rowOf(S));
+  if (rowErr) return fail("Couldn't sign off: the record didn't save. Check your connection and try again.");
+  if (!S.meta.practice) S.meta.practice = profile.practice_name || "";
   so.signedAt = new Date().toISOString(); so.signedBy = S.meta.adviser.trim(); S.status = "signed";
+  so.version = null; so.sha256 = ""; so.sealedAt = null;
   if (c.crit) log(`Signed with ${c.crit} critical item${c.crit === 1 ? "" : "s"} open. Reason: ${so.override.trim()}`);
   log(`Signed off by ${so.signedBy} (FSP ${S.meta.fsp.trim()}). Client decision: ${so.outcome}`);
-  save(); renderRecord(); toast("Record signed off");
+  const { data, error } = await supabase.from("record_versions").insert({ record_id: S.id, snapshot: S }).select("version, sha256, signed_at").single();
+  if (error) { console.error(error); return fail("Couldn't seal the record. Check your connection and try again."); }
+  so.version = data.version; so.sha256 = data.sha256; so.sealedAt = data.signed_at;
+  log(`Sealed as version ${data.version} (fingerprint ${data.sha256.slice(0, 16)})`);
+  busy = null; dirty = true; await save(); renderRecord(); toast(`Signed and sealed as version ${data.version}`);
+}
+async function reopenRecord() {
+  if (busy) return;
+  const so = S.signoff, v = so.version;
+  const ok = await confirmBox({ title: "Reopen this record?", body: v ? `Version ${v} stays sealed exactly as you signed it. Your changes become version ${v + 1} when you sign again. Reopening is logged in the record's history.` : "The sign-off will be removed so you can edit. You'll need to sign it again, and this is logged in the record's history.", confirmLabel: "Reopen record" });
+  if (!ok) return;
+  S.status = "draft"; so.signedAt = null; so.declared = false; so.version = null; so.sha256 = ""; so.sealedAt = null;
+  log(v ? `Reopened for editing. Version ${v} stays sealed; signing again creates version ${v + 1}` : "Sign-off removed to edit the record");
+  dirty = true; save(); renderRecord();
+}
+async function renderVersions() {
+  const id = S.id;
+  const { data, error } = await supabase.from("record_versions").select("id, version, sha256, signed_at").eq("record_id", id).order("version", { ascending: false });
+  const el = $("#versions"); if (!el || S.id !== id) return;
+  if (error) { el.innerHTML = `<p class="note">Couldn't load sealed versions.</p>`; return; }
+  el.innerHTML = data.length ? `<ul class="versions">${data.map((v) => `<li>
+      <div><b>Version ${v.version}</b>${locked() && v.version === S.signoff.version ? ` <span class="status signed">Current</span>` : ""}
+        <div class="note">Sealed ${esc(fmtTime(v.signed_at))}</div><code class="fp" title="SHA-256 fingerprint: ${esc(v.sha256)}">${esc(v.sha256.slice(0, 16))}…</code></div>
+      <div class="v-dl"><button class="btn btn-xs" data-vexport="pdf" data-vid="${esc(v.id)}" aria-label="Download version ${v.version} as PDF">PDF</button><button class="btn btn-xs" data-vexport="docx" data-vid="${esc(v.id)}" aria-label="Download version ${v.version} as Word">Word</button></div>
+    </li>`).join("")}</ul>` : `<p class="note">Nothing sealed yet. Signing off seals a read-only copy of the record as version 1.</p>`;
+  el.querySelectorAll("[data-vexport]").forEach((b) => b.addEventListener("click", () => exportRecord(b.dataset.vexport, b.dataset.vid, b)));
 }
 
 /* ---------------- Activity tab ---------------- */
@@ -624,37 +674,57 @@ function renderActivity() {
 }
 
 /* ---------------- Export ---------------- */
-function exportHtml() {
-  const m = S.meta, so = S.signoff;
-  const secs = SECTIONS.map(([id, t], i) => { const txt = S.sections[id].content.trim(); const na = id === "replacement" && !S.replacement.is_replacement && !txt; return `<h2>${i + 1}. ${esc(t)}</h2><p>${na ? "<em>Not applicable: no existing product is being replaced.</em>" : txt ? esc(txt).replace(/\n/g, "<br>") : "<em>Not recorded.</em>"}</p>`; }).join("");
-  const gaps = S.gaps.map((g) => `<tr><td>${esc(SEC_TITLE[g.section_id])}</td><td>${esc(SEV_LABEL[g.severity])}</td><td>${esc(g.issue)}</td><td>${g.state === "open" ? "<b>Open</b>" : (g.state === "addressed" ? "Addressed: " : "Not applicable: ") + esc(g.note)}</td></tr>`).join("");
-  return `<!DOCTYPE html><html lang="en-ZA"><head><meta charset="utf-8"><title>Record of Advice: ${esc(m.client)}</title>
-<style>body{font-family:Georgia,'Times New Roman',serif;color:#152B2A;max-width:760px;margin:40px auto;padding:0 24px;line-height:1.55;font-size:12pt}h1{font-size:22pt;margin:0 0 6px;border-bottom:2px solid #1D4B48;padding-bottom:10px}h2{font-size:13pt;margin:22px 0 6px;color:#1D4B48}table{border-collapse:collapse;width:100%;font-size:10pt;margin-top:8px}td,th{border:1px solid #999;padding:6px 8px;text-align:left;vertical-align:top}.meta td{border:none;padding:2px 12px 2px 0}.small{font-size:10pt;color:#444}</style></head><body>
-<h1>Record of Advice</h1>
-<table class="meta"><tr><td><b>Client:</b> ${esc(m.client || "—")}</td><td><b>Reference:</b> ${esc(m.ref || "—")}</td></tr><tr><td><b>Advisor:</b> ${esc(m.adviser || "—")}</td><td><b>FSP number:</b> ${esc(m.fsp || "—")}</td></tr><tr><td><b>Meeting date:</b> ${esc(fmtDate(m.date))}</td><td><b>Advice area:</b> ${esc(m.area)}</td></tr></table>
-${S.summary ? `<p><em>${esc(S.summary)}</em></p>` : ""}${secs}
-<h2>Advisor declaration</h2><p>${S.status === "signed" ? `I confirm this record accurately reflects the information considered, the products considered and the advice given.<br><br>Signed off by ${esc(so.signedBy)} on ${esc(fmtTime(so.signedAt))}.<br>Client's decision: ${esc(so.outcome)}.` : "<b>Draft: not yet signed off.</b>"}</p>
-<p>Client signature: ______________________ &nbsp; Date: ____________</p>
-<h2>Appendix: compliance review items</h2>${gaps ? `<table><tr><th>Section</th><th>Severity</th><th>Item</th><th>Resolution</th></tr>${gaps}</table>` : "<p class='small'>No items were flagged.</p>"}
-<h2>Appendix: record history</h2><ul class="small">${S.audit.map((a) => `<li>${esc(fmtTime(a.at))}: ${esc(a.text)}</li>`).join("")}</ul>
-<p class="small">Drafted with Quilla from the advisor's meeting notes and reviewed by the advisor.</p></body></html>`;
+// Flattens a record (the live draft, or a sealed snapshot) into display-ready text.
+function docModel(r, seal) {
+  const m = r.meta, so = r.signoff, signed = r.status === "signed";
+  return {
+    practice: (m.practice ?? profile.practice_name ?? "").trim(),
+    client: m.client || "Client",
+    meta: [["Client", m.client || "—"], ["Reference", m.ref || "—"], ["Advisor", m.adviser || "—"], ["FSP number", m.fsp || "—"], ["Meeting date", fmtDate(m.date)], ["Advice area", m.area || "—"]],
+    summary: r.summary || "",
+    sections: SECTIONS.map(([id, title], i) => {
+      const text = (r.sections?.[id]?.content || "").trim(), na = id === "replacement" && !r.replacement?.is_replacement && !text;
+      return { n: i + 1, title, text, note: na ? "Not applicable: no existing product is being replaced." : "Not recorded." };
+    }),
+    signed, signedBy: so.signedBy || "", signedAt: so.signedAt ? fmtTime(so.signedAt) : "", outcome: so.outcome || "", override: (r.gaps || []).some((g) => g.state === "open" && g.severity === "critical") ? (so.override || "").trim() : "",
+    gaps: (r.gaps || []).map((g) => ({ section: SEC_TITLE[g.section_id] || "", severity: SEV_LABEL[g.severity] || "", issue: g.issue, open: g.state === "open", resolution: g.state === "open" ? "Open" : (g.state === "addressed" ? "Addressed: " : "Not applicable: ") + g.note })),
+    audit: (r.audit || []).map((a) => [fmtTime(a.at), a.text]),
+    seal: seal ? { version: seal.version, sha256: seal.sha256, sealedAt: fmtTime(seal.sealedAt) } : null,
+    statusLabel: seal ? `SIGNED · VERSION ${seal.version}` : (signed ? "SIGNED" : "DRAFT"),
+  };
 }
-function exportMd() {
-  const m = S.meta, so = S.signoff;
-  let md = `# Record of Advice\n\n**Client:** ${m.client || "—"}  \n**Reference:** ${m.ref || "—"}  \n**Advisor:** ${m.adviser || "—"} (FSP ${m.fsp || "—"})  \n**Meeting date:** ${fmtDate(m.date)}  \n**Advice area:** ${m.area}\n\n`;
-  if (S.summary) md += `_${S.summary}_\n\n`;
-  SECTIONS.forEach(([id, t], i) => { const txt = S.sections[id].content.trim(); const na = id === "replacement" && !S.replacement.is_replacement && !txt; md += `## ${i + 1}. ${t}\n\n${na ? "_Not applicable: no existing product is being replaced._" : txt || "_Not recorded._"}\n\n`; });
-  md += `## Advisor declaration\n\n${S.status === "signed" ? `Signed off by ${so.signedBy} on ${fmtTime(so.signedAt)}. Client's decision: ${so.outcome}.` : "**Draft: not yet signed off.**"}\n\n## Compliance review items\n\n`;
-  md += S.gaps.length ? S.gaps.map((g) => `- **${SEV_LABEL[g.severity]}** (${SEC_TITLE[g.section_id]}): ${g.issue} — ${g.state === "open" ? "Open" : (g.state === "addressed" ? "Addressed: " : "Not applicable: ") + g.note}`).join("\n") : "No items were flagged.";
-  md += `\n\n## Record history\n\n` + S.audit.map((a) => `- ${fmtTime(a.at)}: ${a.text}`).join("\n") + "\n";
+function exportMd(d) {
+  let md = `# Record of Advice\n\n${d.practice ? `**Practice:** ${d.practice}  \n` : ""}` + d.meta.map(([k, v]) => `**${k}:** ${v}`).join("  \n") + "\n\n";
+  if (d.summary) md += `_${d.summary}_\n\n`;
+  d.sections.forEach((s) => { md += `## ${s.n}. ${s.title}\n\n${s.text || `_${s.note}_`}\n\n`; });
+  md += `## Advisor declaration\n\n${d.signed ? `Signed off by ${d.signedBy} on ${d.signedAt}. Client's decision: ${d.outcome}.${d.override ? ` Signed with critical items open. Reason: ${d.override}` : ""}` : "**Draft: not yet signed off.**"}\n\n## Compliance review items\n\n`;
+  md += d.gaps.length ? d.gaps.map((g) => `- **${g.severity}** (${g.section}): ${g.issue} — ${g.resolution}`).join("\n") : "No items were flagged.";
+  md += `\n\n## Record history\n\n` + d.audit.map(([t, x]) => `- ${t}: ${x}`).join("\n") + "\n";
+  if (d.seal) md += `\n## Record integrity\n\nGenerated from version ${d.seal.version}, sealed on ${d.seal.sealedAt}. SHA-256 fingerprint: \`${d.seal.sha256}\`\n`;
   return md;
 }
-function exportFile(kind) {
-  const base = ("ROA " + (S.meta.client || "client") + " " + (S.meta.date || today())).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-");
-  const blob = new Blob([kind === "html" ? exportHtml() : exportMd()], { type: kind === "html" ? "text/html" : "text/markdown" });
-  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${base}.${kind}`;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-  log(`Exported as .${kind}`); scheduleSave(); toast("Download started");
+const EXPORT_LABEL = { pdf: "PDF", docx: "Word (.docx)", md: "text (.md)" };
+// versionId: export that sealed version. Otherwise a signed record exports its current
+// sealed version (never the editable row), and a draft exports as a draft.
+async function exportRecord(kind, versionId, btn) {
+  let r = S, seal = null;
+  const which = versionId ? ["id", versionId] : (locked() && S.signoff.version ? ["version", S.signoff.version] : null);
+  const label = btn?.textContent; if (btn) { btn.disabled = true; btn.textContent = "Preparing…"; }
+  try {
+    if (which) {
+      const { data, error } = await supabase.from("record_versions").select("version, sha256, signed_at, snapshot").eq("record_id", S.id).eq(which[0], which[1]).single();
+      if (error || !data) throw new Error("version");
+      r = Object.assign(blank(), data.snapshot); seal = { version: data.version, sha256: data.sha256, sealedAt: data.signed_at };
+    }
+    const d = docModel(r, seal);
+    const blob = kind === "pdf" ? await buildPdf(d) : kind === "docx" ? await buildDocx(d) : new Blob([exportMd(d)], { type: "text/markdown" });
+    const base = ("ROA " + (r.meta.client || "client") + " " + (r.meta.date || today()) + (seal ? ` v${seal.version}` : " draft")).replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${base}.${kind}`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    log(`Exported ${seal ? `version ${seal.version}` : "draft"} as ${EXPORT_LABEL[kind]}`); dirty = true; scheduleSave(); toast("Download started");
+  } catch (e) {
+    console.error(e); toast(which ? "Couldn't load the sealed version. Try again." : "Couldn't create the file. Check your connection and try again.");
+  } finally { if (btn) { btn.disabled = false; btn.textContent = label; } }
 }
 
 /* ---------------- Sidebar & search ---------------- */

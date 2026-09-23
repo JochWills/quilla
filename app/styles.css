@@ -180,7 +180,7 @@ label.f .hint{font-weight:400;color:var(--muted)}
 .tick.ok{background:var(--green-bg);color:var(--green)} .tick.no{background:var(--red-bg);color:var(--red)} .tick.warn{background:var(--amber-bg);color:var(--amber)}
 .declare{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--rule);border-radius:8px;margin-top:14px;font-size:14px;cursor:pointer}
 .declare input{margin-top:3px;width:18px;height:18px;flex:none}
-.signed{background:var(--green-bg);color:var(--green);border:1px solid var(--green-line);border-radius:10px;padding:14px 16px;margin-top:16px}
+.signed:not(.status){background:var(--green-bg);color:var(--green);border:1px solid var(--green-line);border-radius:10px;padding:14px 16px;margin-top:16px}
 .audit{list-style:none;padding:0;margin:0;font-size:13.5px}
 .audit li{padding:10px 0;border-bottom:1px solid var(--rule);display:grid;grid-template-columns:130px 1fr;gap:12px}
 .audit li:last-child{border-bottom:none}
@@ -259,3 +259,19 @@ h3.sub{font-size:15px;font-weight:600;margin:0 0 10px}
 .qd-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
 @media (max-width:480px){.qd-actions{flex-direction:column-reverse}.qd-actions .btn{width:100%}}
 @media (prefers-reduced-motion: reduce){.qdialog[open],.qdialog[open]::backdrop{animation:none}}
+
+/* Signed records: read-only banner, sealed versions list */
+.locked-bar{display:flex;align-items:center;gap:12px;background:var(--green-bg);border:1px solid var(--green-line);color:var(--green);border-radius:10px;padding:10px 14px;margin:0 0 18px;font-size:14px}
+.locked-bar svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.locked-bar div{flex:1;color:var(--ink)}
+.locked-bar b{color:var(--green)}
+.sec-body textarea[readonly]{background:transparent;border-color:transparent;padding-left:0;padding-right:0;cursor:default}
+.sec-body textarea[readonly]:focus{outline:none;box-shadow:none}
+.seal-line{margin-top:6px;font-size:13px;color:var(--ink)}
+code.fp{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;background:var(--brand-tint);color:var(--ink);border-radius:4px;padding:1px 5px}
+.versions{list-style:none;margin:0 0 4px;padding:0}
+.versions li{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--rule);font-size:14px}
+.versions li:last-child{border-bottom:none}
+.versions .note{margin:2px 0 4px;font-size:12.5px}
+.v-dl{display:flex;gap:6px;flex:none}
+@media (max-width:640px){.locked-bar{flex-wrap:wrap}.locked-bar .btn{width:100%}}
