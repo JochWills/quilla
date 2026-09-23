@@ -209,8 +209,7 @@ function renderApp() {
   leaveGuard = null; $("#savestate").textContent = view === "record" ? $("#savestate").textContent : "";
   $("#navRecords").setAttribute("aria-current", NAV_OF[view] === "list" ? "page" : "false");
   document.querySelectorAll("[data-nav]").forEach((b) => b.setAttribute("aria-current", NAV_OF[view] === b.dataset.nav ? "page" : "false"));
-  $("#acctBtn").classList.toggle("current", view === "account");
-  if (view === "list") renderList(); else if (view === "account") renderAccount();
+  if (view === "list") renderList();
   else if (view === "clients") renderClients(ctx); else if (view === "client") renderClient(ctx, viewParam);
   else if (view === "meetings") renderMeetings(ctx); else if (view === "meeting") renderMeeting(ctx, viewParam);
   else if (view === "templates") renderTemplates(ctx); else if (view === "compliance") renderCompliance(ctx);
@@ -259,43 +258,68 @@ const ctx = {
   go, openRecord: (id) => openRecord(id), startRecord, setLeaveGuard: (fn) => { leaveGuard = fn; },
 };
 
-/* ---------------- Account ---------------- */
-function renderAccount() {
-  $("#content").innerHTML = `
-    <div class="list-head"><div><h1>Account</h1><div class="rec-sub">Used to prefill new records and to sign in.</div></div></div>
-    <div class="card" style="max-width:520px;padding:22px">
-      <h3 class="sub">Profile</h3>
-      <label class="f">Full name<input type="text" id="p_name" autocomplete="name"></label>
-      <label class="f" style="margin-top:12px">FSP number<input type="text" id="p_fsp" inputmode="numeric" autocomplete="off"></label>
-      <label class="f" style="margin-top:12px">Practice name <span class="hint" style="display:inline">(optional)</span><input type="text" id="p_practice" autocomplete="organization"></label>
-      <div class="cap-foot"><button class="btn btn-primary" id="saveProfileBtn">Save profile</button></div>
-    </div>
-    <div class="card" style="max-width:520px;padding:22px;margin-top:18px">
-      <h3 class="sub">Sign-in</h3>
-      <p class="note" style="margin:0 0 14px">${esc(session.user.email || "")}</p>
-      <label class="f">New password<input type="password" id="p_pw1" autocomplete="new-password" minlength="8"></label>
-      <label class="f" style="margin-top:12px">Confirm new password<input type="password" id="p_pw2" autocomplete="new-password" minlength="8"></label>
-      <div class="cap-foot"><button class="btn" id="savePwBtn">Update password</button></div>
-      <div id="pwMsg" aria-live="polite"></div>
+/* ---------------- Account settings (popup) ---------------- */
+// A settings dialog with a section sidebar, opened from the account menu (or ?view=account).
+function openSettings(section = "profile") {
+  const d = document.createElement("dialog");
+  d.className = "qdialog settings";
+  d.setAttribute("aria-label", "Account settings");
+  const SECTIONS_NAV = [["profile", "Profile"], ["password", "Password"]];
+  d.innerHTML = `<div class="st-wrap">
+      <nav class="st-nav" aria-label="Settings sections">
+        <h2>Settings</h2>
+        ${SECTIONS_NAV.map(([k, t]) => `<button type="button" class="st-tab" data-sec="${k}">${t}</button>`).join("")}
+      </nav>
+      <div class="st-body">
+        <button type="button" class="st-close" aria-label="Close settings">×</button>
+        <div id="stPane"></div>
+      </div>
     </div>`;
-  $("#p_name").value = profile.full_name || ""; $("#p_fsp").value = profile.fsp_number || ""; $("#p_practice").value = profile.practice_name || "";
-  $("#saveProfileBtn").addEventListener("click", async () => {
-    const btn = $("#saveProfileBtn"); btn.disabled = true; btn.textContent = "Saving…";
-    const ok = await saveProfile({ full_name: $("#p_name").value.trim(), fsp_number: $("#p_fsp").value.trim(), practice_name: $("#p_practice").value.trim() });
-    btn.disabled = false; btn.textContent = "Save profile";
-    if (ok) toast("Profile saved");
-  });
-  $("#savePwBtn").addEventListener("click", async () => {
-    const msg = $("#pwMsg"), p1 = $("#p_pw1").value, p2 = $("#p_pw2").value, btn = $("#savePwBtn");
-    if (p1.length < 8) { msg.innerHTML = `<div class="err">Password must be at least 8 characters.</div>`; return; }
-    if (p1 !== p2) { msg.innerHTML = `<div class="err">Passwords don't match.</div>`; return; }
-    btn.disabled = true; btn.textContent = "Saving…";
-    const { error } = await supabase.auth.updateUser({ password: p1 });
-    btn.disabled = false; btn.textContent = "Update password";
-    if (error) { msg.innerHTML = `<div class="err">Couldn't update your password. Try again.</div>`; return; }
-    $("#p_pw1").value = ""; $("#p_pw2").value = ""; msg.innerHTML = "";
-    toast("Password updated");
-  });
+  const pane = () => d.querySelector("#stPane");
+  const show = (key) => {
+    d.querySelectorAll(".st-tab").forEach((b) => b.setAttribute("aria-current", String(b.dataset.sec === key)));
+    if (key === "profile") {
+      pane().innerHTML = `<h3>Profile</h3><p class="note st-sub">Used to prefill new records and on your exports.</p>
+        <label class="f">Full name<input type="text" id="p_name" autocomplete="name"></label>
+        <label class="f" style="margin-top:12px">FSP number<input type="text" id="p_fsp" inputmode="numeric" autocomplete="off"></label>
+        <label class="f" style="margin-top:12px"><span>Practice name <span class="opt">(optional)</span></span><input type="text" id="p_practice" autocomplete="organization"></label>
+        <div class="cap-foot"><button class="btn btn-primary btn-sm" id="saveProfileBtn">Save profile</button></div>`;
+      d.querySelector("#p_name").value = profile.full_name || ""; d.querySelector("#p_fsp").value = profile.fsp_number || ""; d.querySelector("#p_practice").value = profile.practice_name || "";
+      d.querySelector("#saveProfileBtn").addEventListener("click", async (e) => {
+        const btn = e.currentTarget; btn.disabled = true; btn.textContent = "Saving…";
+        const ok = await saveProfile({ full_name: d.querySelector("#p_name").value.trim(), fsp_number: d.querySelector("#p_fsp").value.trim(), practice_name: d.querySelector("#p_practice").value.trim() });
+        btn.disabled = false; btn.textContent = "Save profile";
+        if (ok) toast("Profile saved");
+      });
+      d.querySelector("#p_name").focus();
+    } else {
+      pane().innerHTML = `<h3>Password</h3><p class="note st-sub">Signed in as ${esc(session.user.email || "")}</p>
+        <label class="f">New password<input type="password" id="p_pw1" autocomplete="new-password" minlength="8"></label>
+        <label class="f" style="margin-top:12px">Confirm new password<input type="password" id="p_pw2" autocomplete="new-password" minlength="8"></label>
+        <div class="cap-foot"><button class="btn btn-primary btn-sm" id="savePwBtn">Update password</button></div>
+        <div id="pwMsg" aria-live="polite"></div>`;
+      d.querySelector("#savePwBtn").addEventListener("click", async (e) => {
+        const btn = e.currentTarget, msg = d.querySelector("#pwMsg"), p1 = d.querySelector("#p_pw1").value, p2 = d.querySelector("#p_pw2").value;
+        if (p1.length < 8) { msg.innerHTML = `<div class="err">Password must be at least 8 characters.</div>`; return; }
+        if (p1 !== p2) { msg.innerHTML = `<div class="err">Passwords don't match.</div>`; return; }
+        btn.disabled = true; btn.textContent = "Saving…";
+        const { error } = await supabase.auth.updateUser({ password: p1 });
+        btn.disabled = false; btn.textContent = "Update password";
+        if (error) { msg.innerHTML = `<div class="err">Couldn't update your password. Try again.</div>`; return; }
+        d.querySelector("#p_pw1").value = ""; d.querySelector("#p_pw2").value = ""; msg.innerHTML = "";
+        toast("Password updated");
+      });
+      d.querySelector("#p_pw1").focus();
+    }
+  };
+  const close = () => { d.close(); d.remove(); $("#acctBtn").focus(); };
+  d.querySelectorAll(".st-tab").forEach((b) => b.addEventListener("click", () => show(b.dataset.sec)));
+  d.querySelector(".st-close").addEventListener("click", close);
+  d.addEventListener("click", (e) => { if (e.target === d) close(); });
+  d.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
+  document.body.appendChild(d);
+  d.showModal();
+  show(section);
 }
 
 /* ---------------- Records list ---------------- */
@@ -845,7 +869,7 @@ function renderAcctBtn() {
 $("#acctBtn").addEventListener("click", (e) => { e.stopPropagation(); setAcctMenu($("#acctMenu").hidden); });
 document.addEventListener("click", (e) => { if (!e.target.closest("#acct")) setAcctMenu(false); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#acctMenu").hidden) { setAcctMenu(false); $("#acctBtn").focus(); } });
-$("#navAccount").addEventListener("click", () => { setAcctMenu(false); go("account"); });
+$("#navAccount").addEventListener("click", () => { setAcctMenu(false); openSettings(); });
 $("#searchBox").addEventListener("input", async (e) => { query = e.target.value; if (view !== "list") { if (!(await go("list"))) return; } else renderApp(); });
 $("#signOut").addEventListener("click", async () => { if (dirty) await save(); await supabase.auth.signOut(); });
 window.addEventListener("beforeunload", (e) => { if (dirty) save(); if (dirty || isRecording() || leaveGuard?.()) e.preventDefault(); });
@@ -982,7 +1006,7 @@ async function startApp() {
   const params = new URLSearchParams(location.search);
   if (params.get("view") === "account") {
     history.replaceState(null, "", "/");
-    view = "account"; renderApp();
+    view = "list"; renderApp(); openSettings();
     return;
   }
   if (params.get("example") === "1") {

@@ -277,7 +277,7 @@ code.fp{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-si
 /* Sidebar account button + upward menu */
 .side .acct{margin-top:auto;position:relative;padding-top:8px;border-top:1px solid var(--rule)}
 .acct-btn{display:flex;align-items:center;gap:10px;width:100%;padding:8px;border-radius:9px;border:none;background:none;cursor:pointer;text-align:left;color:var(--ink)}
-.acct-btn:hover,.acct-btn[aria-expanded="true"],.acct-btn.current{background:var(--brand-tint)}
+.acct-btn:hover,.acct-btn[aria-expanded="true"]{background:var(--brand-tint)}
 .acct-av{width:32px;height:32px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:12.5px;font-weight:600;flex:none;letter-spacing:.02em}
 .acct-txt{display:flex;flex-direction:column;min-width:0;flex:1}
 .acct-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -360,3 +360,18 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 .qdialog-form .err{margin-top:12px}
 @media (max-width:560px){.qdialog-form .meta-grid{grid-template-columns:minmax(0,1fr)}}
 .f .opt{font-weight:400;color:var(--faint);font-size:12.5px}
+
+/* Account settings popup (openSettings in app.js) */
+.qdialog.settings{width:min(760px,calc(100vw - 32px));padding:0}
+.st-wrap{display:grid;grid-template-columns:200px minmax(0,1fr);min-height:420px}
+.st-nav{background:var(--brand-tint);padding:22px 12px;border-right:1px solid var(--rule);display:flex;flex-direction:column;gap:2px}
+.st-nav h2{font-family:var(--serif);font-weight:500;font-size:20px;margin:0 10px 14px}
+.st-tab{background:none;border:none;text-align:left;padding:9px 10px;border-radius:7px;font-size:14px;color:var(--muted);cursor:pointer}
+.st-tab:hover{background:var(--brand-soft);color:var(--ink)}
+.st-tab[aria-current="true"]{background:var(--surface);color:var(--ink);font-weight:500;box-shadow:var(--shadow-sm)}
+.st-body{position:relative;padding:26px 28px}
+.st-body h3{font-size:17px;font-weight:600;margin:0 0 4px}
+.st-sub{margin:0 0 18px}
+.st-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:7px;border:none;background:none;font-size:22px;line-height:1;color:var(--muted);cursor:pointer}
+.st-close:hover{background:var(--brand-tint);color:var(--ink)}
+@media (max-width:600px){.st-wrap{grid-template-columns:minmax(0,1fr)}.st-nav{flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--rule);padding:14px}.st-nav h2{width:100%;margin:0 6px 8px}}
