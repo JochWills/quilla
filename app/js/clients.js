@@ -4,14 +4,14 @@
 
 const FIELDS = [
   ["name", "Client name", "text", "name"],
-  ["reference", "Your reference", "text", "off", "Your own reference, not an ID number"],
+  ["reference", "Your reference", "text", "off", "e.g. CB-0921"],
   ["email", "Email", "email", "email"],
   ["phone", "Phone", "tel", "tel"],
 ];
 
 function fieldsHtml(ctx, c, prefix) {
-  return `<div class="meta-grid">${FIELDS.map(([k, label, type, ac, ph]) => `<label class="f">${label}${k === "name" ? "" : ` <span class="hint" style="display:inline">(optional)</span>`}<input type="${type}" id="${prefix}${k}" autocomplete="${ac}" ${ph ? `placeholder="${ph}"` : ""} value="${ctx.esc(c[k] || "")}"></label>`).join("")}</div>
-    <label class="f" style="margin-top:14px">Notes <span class="hint" style="display:inline">(optional)</span><textarea id="${prefix}notes" rows="3" placeholder="Household, preferences, anything useful before your next meeting">${ctx.esc(c.notes || "")}</textarea></label>`;
+  return `<div class="meta-grid">${FIELDS.map(([k, label, type, ac, ph]) => `<label class="f"><span>${label}${k === "name" ? "" : ` <span class="opt">(optional)</span>`}</span><input type="${type}" id="${prefix}${k}" autocomplete="${ac}" ${ph ? `placeholder="${ph}"` : ""} value="${ctx.esc(c[k] || "")}"></label>`).join("")}</div>
+    <label class="f" style="margin-top:14px"><span>Notes <span class="opt">(optional)</span></span><textarea id="${prefix}notes" rows="3" placeholder="Household, preferences, anything useful before your next meeting">${ctx.esc(c.notes || "")}</textarea></label>`;
 }
 function readFields(prefix) {
   const v = (k) => document.getElementById(prefix + k).value.trim();
@@ -28,29 +28,45 @@ export async function renderClients(ctx) {
   const clients = ctx.clients();
   $("#content").innerHTML = `
     <div class="list-head"><div><h1>Clients</h1><div class="rec-sub">${clients.length} client${clients.length === 1 ? "" : "s"}</div></div><button class="btn btn-primary btn-sm" id="addClient">New client</button></div>
-    <div id="newClient"></div>
     ${clients.length ? `<div class="card" style="overflow-x:auto"><table class="rtable"><thead><tr><th>Client</th><th class="hide-sm">Reference</th><th>Records</th><th class="hide-sm">Meetings</th><th class="hide-sm">Updated</th></tr></thead><tbody>
       ${clients.map((c) => `<tr data-client="${esc(c.id)}" tabindex="0"><td class="client">${esc(c.name)}</td><td class="hide-sm">${esc(c.reference || "—")}</td><td>${recordsBy[c.id] || 0}</td><td class="hide-sm">${meetingsBy[c.id] || 0}</td><td class="hide-sm">${esc(ctx.fmtDate(String(c.updated_at).slice(0, 10)))}</td></tr>`).join("")}
-    </tbody></table></div>` : `<div class="card empty"><h2>Keep your clients in one place</h2><p>Add a client once, then start their Records of Advice and meetings from their page. Their name and reference fill in for you.</p></div>`}`;
-  const openForm = () => {
-    $("#newClient").innerHTML = `<div class="card" style="padding:22px;margin-bottom:18px;max-width:760px"><h3 class="sub">New client</h3>${fieldsHtml(ctx, {}, "nc_")}
-      <div class="cap-foot"><button class="btn btn-primary" id="nc_save">Add client</button><button class="btn" id="nc_cancel">Cancel</button></div><div id="nc_msg" aria-live="polite"></div></div>`;
-    $("#nc_name").focus();
-    $("#nc_cancel").addEventListener("click", () => ($("#newClient").innerHTML = ""));
-    $("#nc_save").addEventListener("click", async () => {
-      const row = readFields("nc_");
-      if (!row.name) { $("#nc_msg").innerHTML = `<div class="err">Add the client's name.</div>`; return; }
-      const { data, error } = await ctx.supabase.from("clients").insert(row).select().single();
-      if (error) { $("#nc_msg").innerHTML = `<div class="err">Couldn't add the client. Try again.</div>`; return; }
-      ctx.toast("Client added"); ctx.go("client", data.id);
-    });
-  };
+    </tbody></table></div>` : `<div class="card empty"><h2>Keep your clients in one place</h2><p>Add a client once, then start their Records of Advice and meetings from their page. Their name and reference fill in for you.</p><button class="btn btn-primary" id="addClient2">Add your first client</button></div>`}`;
+  const openForm = () => newClientDialog(ctx);
   $("#addClient").addEventListener("click", openForm);
-  if (!clients.length) openForm();
+  $("#addClient2")?.addEventListener("click", openForm);
   $("#content").querySelectorAll("[data-client]").forEach((tr) => {
     tr.addEventListener("click", () => ctx.go("client", tr.dataset.client));
     tr.addEventListener("keydown", (e) => { if (e.key === "Enter") ctx.go("client", tr.dataset.client); });
   });
+}
+
+// New client popup (same <dialog> styling as confirmBox in app.js). Esc, Cancel or a
+// click on the backdrop closes it; saving opens the new client's page.
+function newClientDialog(ctx) {
+  const d = document.createElement("dialog");
+  d.className = "qdialog qdialog-form";
+  d.setAttribute("aria-labelledby", "ncT");
+  d.innerHTML = `<form class="qd-in" method="dialog" novalidate>
+      <h2 id="ncT">New client</h2>
+      ${fieldsHtml(ctx, {}, "nc_")}
+      <div id="nc_msg" aria-live="polite"></div>
+      <div class="qd-actions"><button type="button" class="btn btn-sm" data-cancel>Cancel</button><button type="submit" class="btn btn-sm btn-primary" id="nc_save">Add client</button></div>
+    </form>`;
+  const close = () => { d.close(); d.remove(); };
+  d.addEventListener("click", (e) => { if (e.target === d || e.target.closest("[data-cancel]")) close(); });
+  d.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
+  d.querySelector("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const row = readFields("nc_"), msg = d.querySelector("#nc_msg"), btn = d.querySelector("#nc_save");
+    if (!row.name) { msg.innerHTML = `<div class="err">Add the client's name.</div>`; d.querySelector("#nc_name").focus(); return; }
+    btn.disabled = true; btn.textContent = "Adding…";
+    const { data, error } = await ctx.supabase.from("clients").insert(row).select().single();
+    if (error) { btn.disabled = false; btn.textContent = "Add client"; msg.innerHTML = `<div class="err">Couldn't add the client. Try again.</div>`; return; }
+    close(); ctx.toast("Client added"); ctx.go("client", data.id);
+  });
+  document.body.appendChild(d);
+  d.showModal();
+  d.querySelector("#nc_name").focus();
 }
 
 /* ---------------- Client page ---------------- */

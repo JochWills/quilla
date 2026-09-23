@@ -355,3 +355,8 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 @media (max-width:1080px){.ctiles{grid-template-columns:repeat(2,minmax(0,1fr))}.meet-grid{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:640px){.tpl-grid{grid-template-columns:minmax(0,1fr)}.recbtns{margin-left:0;width:100%}}
 @media (prefers-reduced-motion: reduce){.recbar .recdot{animation:none}}
+.qdialog-form{width:min(560px,calc(100vw - 32px))}
+.qdialog-form h2{margin-bottom:16px}
+.qdialog-form .err{margin-top:12px}
+@media (max-width:560px){.qdialog-form .meta-grid{grid-template-columns:minmax(0,1fr)}}
+.f .opt{font-weight:400;color:var(--faint);font-size:12.5px}
