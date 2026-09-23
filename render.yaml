@@ -23,6 +23,15 @@ services:
       - type: rewrite
         source: /coming-soon
         destination: /coming-soon.html
+      - type: rewrite
+        source: /how-it-works
+        destination: /how-it-works.html
+      - type: rewrite
+        source: /pricing
+        destination: /pricing.html
+      - type: rewrite
+        source: /faq
+        destination: /faq.html
     headers:
       - path: /*
         name: X-Frame-Options

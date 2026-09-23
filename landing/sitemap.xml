@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://quilla.co.za/</loc></url>
+  <url><loc>https://quilla.co.za/how-it-works</loc></url>
+  <url><loc>https://quilla.co.za/pricing</loc></url>
+  <url><loc>https://quilla.co.za/faq</loc></url>
   <url><loc>https://quilla.co.za/privacy</loc></url>
   <url><loc>https://quilla.co.za/terms</loc></url>
 </urlset>

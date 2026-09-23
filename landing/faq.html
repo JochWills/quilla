@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+<meta charset="utf-8">
+<script>
+/* Pre-launch gate. Bypass: ?preview=<token>, then remembered via a cookie shared
+   across quilla.co.za and app.quilla.co.za. Not a security boundary — real data
+   access is still governed by Supabase auth/RLS. Rotate the token to revoke access. */
+(function(){
+  var TOKEN="OWqa6KRoOod9", COOKIE="quilla_preview";
+  var params=new URLSearchParams(location.search), key=params.get("preview");
+  function getCookie(n){return document.cookie.split("; ").reduce(function(a,c){var i=c.indexOf("=");return i>-1&&c.slice(0,i)===n?decodeURIComponent(c.slice(i+1)):a},null)}
+  function grant(){document.cookie=COOKIE+"=1; path=/; max-age="+60*60*24*180+(location.hostname.endsWith("quilla.co.za")?"; domain=.quilla.co.za":"")+"; samesite=lax"+(location.protocol==="https:"?"; secure":"")}
+  if(key===TOKEN){grant()}
+  else if(getCookie(COOKIE)!=="1" && location.pathname!=="/coming-soon"){location.replace("/coming-soon")}
+  if(key){params.delete("preview");var q=params.toString();history.replaceState(null,"",location.pathname+(q?"?"+q:"")+location.hash)}
+})();
+</script>
+<meta name="color-scheme" content="light">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex"><!-- pre-launch: remove this line when the coming-soon gate comes off -->
+<title>FAQ · Quilla</title>
+<meta name="description" content="Answers to common questions about Quilla: advice, compliance, client data, recording meetings, signing and exports.">
+<link rel="canonical" href="https://quilla.co.za/faq">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://quilla.co.za/faq">
+<meta property="og:title" content="FAQ · Quilla">
+<meta property="og:description" content="AI-drafted Records of Advice for South African financial advisors. Paste your meeting notes, review the flagged gaps, sign off.">
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,300&family=Caveat:wght@500&family=Newsreader:opsz,wght@6..72,400..600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+<div id="site">
+<header class="nav">
+  <div class="in">
+    <a class="logo" href="/">Quilla</a>
+    <nav class="nav-links" aria-label="Site">
+      <a href="/#product">Product</a>
+      <a href="/how-it-works">How it works</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/faq" aria-current="page">FAQ</a>
+    </nav>
+    <div class="nav-right">
+      <a class="login" href="https://app.quilla.co.za/">Log in</a>
+      <a class="btn btn-primary btn-sm" href="https://app.quilla.co.za/">Get started <svg class="arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+    </div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+  <section class="sec" aria-labelledby="faqT">
+    <div class="eyebrow">Questions</div>
+    <h1 class="h-display" id="faqT" style="margin-top:12px">What advisors ask us.</h1>
+    <div class="faq">
+      <details><summary>Does Quilla give financial advice?</summary><p>No. It documents advice you've already given, using only your notes. It never suggests products or judges suitability, and anything missing from your notes is marked as not captured.</p></details>
+      <details><summary>Does it replace my compliance officer?</summary><p>No. Quilla flags common record-keeping gaps before your compliance officer sees the file, so fewer come back to you. They still review your records.</p></details>
+      <details><summary>What does “Improve with AI” do?</summary><p>It rewrites a section in clearer, more formal wording using only the facts already in that section and your notes. It never adds new facts, and you can undo it.</p></details>
+      <details><summary>What happens to my clients' information?</summary><p>Records are private to your account. To draft a record, your notes are sent to an AI model that writes it. If you record a meeting, the audio is sent to a transcription service and deleted once the transcript is ready. Include only what the record needs, and leave out ID and account numbers.</p></details>
+      <details><summary>Can I record meetings in Quilla?</summary><p>Yes, once your client agrees to be recorded. Quilla asks you to confirm their consent first, transcribes the recording, then deletes the audio and keeps only the text. You can also upload a transcript from Teams, Zoom or Google Meet, or paste your own notes.</p></details>
+      <details><summary>What if I disagree with a flagged item?</summary><p>Mark it as not applicable and say why. Your reason is kept in the record's history and included in the export.</p></details>
+      <details><summary>Can a signed record be changed?</summary><p>Signing seals a read-only copy with a digital fingerprint. If you reopen a record to fix something, the sealed version stays exactly as it was and your changes become a new version when you sign again.</p></details>
+      <details><summary>Can I make drafts sound like my practice?</summary><p>Yes. In Templates you can add guidance for each section, like how you describe fees, and standard wording you use in every record, like your remuneration disclosure. Standard wording is added to the draft where you can see and edit it.</p></details>
+      <details><summary>What formats can I export?</summary><p>PDF and Word, with your practice name, your sign-off, how each flagged item was resolved and the record's full history. Drafts are clearly marked as not signed.</p></details>
+    </div>
+  </section>
+</div>
+
+<section class="cta" aria-labelledby="ctaT">
+  <svg class="scene" viewBox="0 0 1440 560" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#23393B"/><stop offset=".55" stop-color="#3E5857"/><stop offset="1" stop-color="#6B7F78"/></linearGradient></defs>
+    <rect width="1440" height="560" fill="url(#sky)"/>
+    <path d="M760 300 L880 190 L940 230 L1030 140 L1110 210 L1180 170 L1290 250 L1440 200 L1440 560 L760 560Z" fill="#4A6360" opacity=".7"/>
+    <path d="M600 360 L720 280 L800 320 L900 250 L1000 310 L1090 270 L1200 330 L1320 290 L1440 330 L1440 560 L600 560Z" fill="#344C4A"/>
+    <path d="M0 470 C200 440 380 430 560 445 C700 456 820 420 980 400 C1120 384 1280 390 1440 380 L1440 560 L0 560Z" fill="#1E3232"/>
+    <path d="M0 470 C200 440 380 430 560 445 L560 452 C380 440 200 450 0 480Z" fill="#8FA39B" opacity=".25"/>
+    <path d="M0 500 C300 480 600 505 900 470 C1100 450 1300 470 1440 455 L1440 560 L0 560Z" fill="#162627"/>
+    <rect width="1440" height="560" fill="#12201F" opacity=".25"/>
+  </svg>
+  <div class="wrap">
+    <div class="eyebrow">A clearer way to do advice</div>
+    <h2 class="h-display" id="ctaT">Ready to see what Quilla can do for you?</h2>
+    <p>Join South African financial advisors using Quilla to create compliant, high-quality Records of Advice, faster.</p>
+    <div class="hero-cta">
+      <a class="btn" href="https://app.quilla.co.za/">Get started <svg class="arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+      <a class="btn ghost" href="https://app.quilla.co.za/?example=1">Try an example meeting</a>
+    </div>
+    <div class="script" aria-hidden="true">More time<br>for what matters.<svg viewBox="0 0 180 14"><path d="M4 10 C50 3 120 2 176 6" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg></div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap in">
+    <a class="logo" href="/" style="font-size:26px">Quilla</a>
+    <nav aria-label="Footer">
+      <a href="/#product">Product</a>
+      <a href="/how-it-works">How it works</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/faq">FAQ</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="https://app.quilla.co.za/">Log in</a>
+    </nav>
+    <span class="copy">© 2026 Quilla. All rights reserved.</span>
+    <p class="disc">Quilla drafts Records of Advice from your meeting notes. It isn't a financial services provider and doesn't give financial advice. You remain responsible for every record you sign.</p>
+  </div>
+</footer>
+</div>
+<script src="/assets/site.js" defer></script>
+</body>
+</html>
