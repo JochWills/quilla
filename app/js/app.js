@@ -435,10 +435,10 @@ function renderNotes() {
     <section class="card" aria-label="Meeting details and notes">
       <div class="client-link" id="clientLink"></div>
       <div class="meta-grid">
-        <label class="f">Client name<input type="text" id="m_client" autocomplete="off"></label>
-        <label class="f">Client reference <span class="hint" style="display:inline">(optional)</span><input type="text" id="m_ref" autocomplete="off" placeholder="Your own reference, not an ID number"></label>
-        <label class="f">Meeting date<input type="date" id="m_date"></label>
-        <label class="f">Advice area<select id="m_area">${AREAS.map((a) => `<option ${m.area === a ? "selected" : ""}>${a}</option>`).join("")}</select></label>
+        <label class="f"><span>Client name</span><input type="text" id="m_client" autocomplete="off"></label>
+        <label class="f"><span>Client reference <span class="opt">(optional)</span></span><input type="text" id="m_ref" autocomplete="off" placeholder="Your own reference, not an ID number"></label>
+        <label class="f"><span>Meeting date</span><input type="date" id="m_date"></label>
+        <label class="f"><span>Advice area</span><select id="m_area">${AREAS.map((a) => `<option ${m.area === a ? "selected" : ""}>${a}</option>`).join("")}</select></label>
       </div>
       <label class="f" for="notes" style="margin-top:18px">Meeting notes or transcript <span class="hint">Include what the client said, what you considered, what you recommended and why, and the fees you disclosed.</span></label>
       <textarea id="notes" placeholder="Meeting with the client on…"></textarea>
