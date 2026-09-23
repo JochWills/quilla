@@ -39,6 +39,8 @@ a{color:inherit}
 .btn-sm{padding:8px 14px;font-size:14px;border-radius:7px}
 .btn-xs{padding:5px 10px;font-size:12.5px;border-radius:6px;gap:6px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-danger{background:var(--red);border-color:var(--red);color:#fff}
+.btn-danger:hover{background:#8A1F16;border-color:#8A1F16}
 .arrow{width:16px;height:16px;flex:none}
 .link-arrow{display:inline-flex;align-items:center;gap:8px;color:var(--brand);font-weight:500;text-decoration:underline;text-underline-offset:4px}
 
@@ -241,3 +243,19 @@ h3.sub{font-size:15px;font-weight:600;margin:0 0 10px}
 /* Wordmark (same as landing) */
 .logo{font-family:var(--logo);font-size:31px;font-weight:460;font-variation-settings:"opsz" 72;letter-spacing:-.012em;color:#18262C;text-decoration:none;line-height:1}
 .btn,.linkbtn{font-family:inherit}
+
+/* Confirm dialog (confirmBox in app.js) */
+.qdialog{border:none;padding:0;border-radius:14px;width:min(420px,calc(100vw - 32px));background:var(--surface);color:var(--ink);box-shadow:var(--shadow-lg)}
+.qdialog::backdrop{background:rgba(21,43,42,.38);backdrop-filter:blur(2px)}
+.qdialog[open]{animation:qd-in .16s ease-out}
+.qdialog[open]::backdrop{animation:qd-fade .16s ease-out}
+@keyframes qd-in{from{opacity:0;transform:translateY(6px) scale(.98)}}
+@keyframes qd-fade{from{opacity:0}}
+.qd-in{padding:24px 24px 20px}
+.qd-icon{width:40px;height:40px;border-radius:50%;background:var(--red-bg);color:var(--red);display:grid;place-items:center;margin-bottom:14px}
+.qd-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.qdialog h2{font-family:var(--serif);font-weight:500;font-size:20px;line-height:1.25;margin:0 0 8px}
+.qdialog p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.55}
+.qd-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+@media (max-width:480px){.qd-actions{flex-direction:column-reverse}.qd-actions .btn{width:100%}}
+@media (prefers-reduced-motion: reduce){.qdialog[open],.qdialog[open]::backdrop{animation:none}}

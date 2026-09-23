@@ -88,6 +88,29 @@ const improveUndo = {};
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2600); }
+// Quilla-styled replacement for window.confirm(). Resolves true only when the
+// confirm button is pressed; Esc, Cancel and clicking the backdrop resolve false.
+function confirmBox({ title, body = "", confirmLabel = "Confirm", danger = false }) {
+  return new Promise((resolve) => {
+    const d = document.createElement("dialog");
+    d.className = "qdialog";
+    d.setAttribute("aria-labelledby", "qdT");
+    d.innerHTML = `<div class="qd-in">
+      ${danger ? `<div class="qd-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg></div>` : ""}
+      <h2 id="qdT">${esc(title)}</h2>
+      ${body ? `<p>${esc(body)}</p>` : ""}
+      <div class="qd-actions">
+        <button type="button" class="btn btn-sm" data-v="0">Cancel</button>
+        <button type="button" class="btn btn-sm ${danger ? "btn-danger" : "btn-primary"}" data-v="1">${esc(confirmLabel)}</button>
+      </div></div>`;
+    const done = (v) => { d.close(); d.remove(); resolve(v); };
+    d.addEventListener("click", (e) => { const b = e.target.closest("[data-v]"); if (b) done(b.dataset.v === "1"); else if (e.target === d) done(false); });
+    d.addEventListener("cancel", (e) => { e.preventDefault(); done(false); });
+    document.body.appendChild(d);
+    d.showModal();
+    d.querySelector('[data-v="0"]').focus();
+  });
+}
 function log(text) { S.audit.push({ at: new Date().toISOString(), text }); }
 function fmtTime(iso) { const d = new Date(iso); return d.toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" }) + ", " + d.toLocaleTimeString("en-ZA", { hour: "2-digit", minute: "2-digit" }); }
 function fmtDate(s) { if (!s) return "—"; const d = new Date(s + "T00:00:00"); return isNaN(d) ? s : d.toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" }); }
@@ -244,7 +267,10 @@ function renderList() {
     tr.addEventListener("keydown", (e) => { if (e.key === "Enter") open(); });
   });
   c.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", async (e) => {
-    e.stopPropagation(); if (!confirm("Delete this record permanently?")) return;
+    e.stopPropagation();
+    const rec = records.find((r) => r.id === b.dataset.del);
+    const ok = await confirmBox({ title: "Delete this record?", body: `${rec?.client_name ? `The record for ${rec.client_name}` : "This record"}, including its draft, sign-off and history, will be permanently deleted. This can't be undone.`, confirmLabel: "Delete record", danger: true });
+    if (!ok) return;
     const { error } = await supabase.from("records").delete().eq("id", b.dataset.del);
     if (error) { toast("Couldn't delete the record. Try again."); return; }
     records = records.filter((r) => r.id !== b.dataset.del);
@@ -350,7 +376,7 @@ function renderNotes() {
   const n = $("#notes"); n.value = S.notes;
   const upd = () => { const w = S.notes.trim() ? S.notes.trim().split(/\s+/).length : 0; $("#count").textContent = w ? `${w} words` : ""; };
   n.addEventListener("input", () => { S.notes = n.value; dirty = true; upd(); scheduleSave(); }); upd();
-  $("#exampleBtn").addEventListener("click", () => { if (S.notes.trim() && !confirm("Replace your current notes with the example meeting?")) return; loadExample(); });
+  $("#exampleBtn").addEventListener("click", async () => { if (S.notes.trim() && !(await confirmBox({ title: "Replace your notes?", body: "Your current notes will be replaced with the example meeting.", confirmLabel: "Replace notes" }))) return; loadExample(); });
   $("#draftBtn").addEventListener("click", () => draft(!!S.sections));
   if (S.sections) $("#capStatus").innerHTML = `<p class="note" style="margin-top:12px">Drafting again replaces the sections and flagged items, and clears any sign-off.</p>`;
 }
@@ -576,7 +602,7 @@ function renderSignoff() {
     const o = $("#s_override"); o.value = so.override; o.addEventListener("input", () => { so.override = o.value; updateSignBtn(); });
   }
   if (!signed) { $("#signBtn").addEventListener("click", signOff); $("#backDoc").addEventListener("click", () => { tab = "document"; renderRecord(); }); updateSignBtn(); }
-  else $("#unsign").addEventListener("click", () => { if (!confirm("Reopen this record? The sign-off will be removed and you'll need to sign again.")) return; S.status = "draft"; so.signedAt = null; so.declared = false; log("Sign-off removed to edit the record"); save(); renderRecord(); });
+  else $("#unsign").addEventListener("click", async () => { if (!(await confirmBox({ title: "Reopen this record?", body: "The sign-off will be removed so you can edit. You'll need to sign it again, and this is logged in the record's history.", confirmLabel: "Reopen record" }))) return; S.status = "draft"; so.signedAt = null; so.declared = false; log("Sign-off removed to edit the record"); save(); renderRecord(); });
   $("#exHtml").addEventListener("click", () => exportFile("html"));
   $("#exMd").addEventListener("click", () => exportFile("md"));
 }
