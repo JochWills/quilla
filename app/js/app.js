@@ -8,6 +8,10 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 import { buildPdf, buildDocx } from "./export.js";
+import { renderClients, renderClient } from "./clients.js";
+import { renderMeetings, renderMeeting, isRecording, flushMeeting } from "./meetings.js";
+import { renderTemplates } from "./templates.js";
+import { renderCompliance } from "./compliance.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // The landing site's "Sign out" link (no session of its own) points here with ?signout=1.
@@ -65,7 +69,7 @@ Claire is happy to open the TFSA now. RA transfer on hold until the Liberty term
 
 /* ---------------- State ---------------- */
 const today = () => new Date().toISOString().slice(0, 10);
-let profile = { full_name: "", fsp_number: "", practice_name: "" }; // this advisor's saved profile, prefills new records
+let profile = { full_name: "", fsp_number: "", practice_name: "", template: {} }; // this advisor's saved profile, prefills new records
 function blank() {
   return {
     id: crypto.randomUUID(),
@@ -73,10 +77,14 @@ function blank() {
     notes: "", summary: "", sections: null, gaps: [], replacement: { is_replacement: false, existing_product: "" },
     signoff: { outcome: "", declared: false, override: "", signedAt: null, signedBy: "", version: null, sha256: "", sealedAt: null },
     status: "draft", audit: [], createdAt: new Date().toISOString(), updatedAt: null,
+    clientId: null, meetingId: null, // optional links (Clients, Meetings)
   };
 }
 let S = blank();
-let view = "list"; // list | record | account
+let view = "list"; // list | record | account | clients | client | meetings | meeting | templates | compliance
+let viewParam = null; // e.g. the client or meeting id for "client" / "meeting"
+let clients = []; // this advisor's clients: {id, name, reference, email, phone, notes, updated_at}
+let leaveGuard = null; // () => true when the current screen has unsaved changes
 let tab = "notes"; // notes | document | signoff | activity
 let authMode = "signin"; // signin | signup | forgot | reset
 let busy = null; // AbortController for the in-flight AI call
@@ -155,13 +163,13 @@ async function ai(kind, input, signal) {
 /* ---------------- Persistence ---------------- */
 async function loadRecords() {
   const { data, error } = await supabase.from("records")
-    .select("id, client_name, advice_area, meeting_date, status, updated_at")
+    .select("id, client_name, advice_area, meeting_date, status, updated_at, client_id")
     .order("updated_at", { ascending: false }).limit(500);
   if (!error) records = data || [];
   $("#recCount").textContent = records.length ? String(records.length) : "";
 }
 async function loadProfile() {
-  const { data, error } = await supabase.from("profiles").select("full_name, fsp_number, practice_name").eq("id", session.user.id).single();
+  const { data, error } = await supabase.from("profiles").select("full_name, fsp_number, practice_name, template").eq("id", session.user.id).single();
   if (!error && data) profile = data;
 }
 async function saveProfile(next) {
@@ -171,7 +179,9 @@ async function saveProfile(next) {
   return true;
 }
 function rowOf(r) {
-  return { id: r.id, client_name: r.meta.client || "", advice_area: r.meta.area || "", meeting_date: r.meta.date || null, status: statusOf(r), data: r };
+  // A client deleted since the record was last saved is dropped rather than failing the save.
+  const clientId = r.clientId && clients.some((c) => c.id === r.clientId) ? r.clientId : null;
+  return { id: r.id, client_name: r.meta.client || "", advice_area: r.meta.area || "", meeting_date: r.meta.date || null, status: statusOf(r), client_id: clientId, data: r };
 }
 let saveTimer = null, saving = false, saveAgain = false;
 function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(save, 1500); }
@@ -186,7 +196,7 @@ async function save() {
   else {
     dirty = false; $("#savestate").textContent = "Saved";
     const i = records.findIndex((r) => r.id === S.id);
-    const listRow = { id: S.id, client_name: row.client_name, advice_area: row.advice_area, meeting_date: row.meeting_date, status: row.status, updated_at: new Date().toISOString() };
+    const listRow = { id: S.id, client_name: row.client_name, advice_area: row.advice_area, meeting_date: row.meeting_date, status: row.status, client_id: row.client_id, updated_at: new Date().toISOString() };
     if (i >= 0) records[i] = listRow; else records.unshift(listRow);
     $("#recCount").textContent = String(records.length);
   }
@@ -194,11 +204,60 @@ async function save() {
 }
 
 /* ---------------- App render ---------------- */
+const NAV_OF = { list: "list", record: "list", clients: "clients", client: "clients", meetings: "meetings", meeting: "meetings", templates: "templates", compliance: "compliance" };
 function renderApp() {
-  $("#navRecords").setAttribute("aria-current", view === "list" ? "page" : "false");
+  leaveGuard = null; $("#savestate").textContent = view === "record" ? $("#savestate").textContent : "";
+  $("#navRecords").setAttribute("aria-current", NAV_OF[view] === "list" ? "page" : "false");
+  document.querySelectorAll("[data-nav]").forEach((b) => b.setAttribute("aria-current", NAV_OF[view] === b.dataset.nav ? "page" : "false"));
   $("#acctBtn").classList.toggle("current", view === "account");
-  if (view === "list") renderList(); else if (view === "account") renderAccount(); else renderRecord();
+  if (view === "list") renderList(); else if (view === "account") renderAccount();
+  else if (view === "clients") renderClients(ctx); else if (view === "client") renderClient(ctx, viewParam);
+  else if (view === "meetings") renderMeetings(ctx); else if (view === "meeting") renderMeeting(ctx, viewParam);
+  else if (view === "templates") renderTemplates(ctx); else if (view === "compliance") renderCompliance(ctx);
+  else renderRecord();
 }
+// Leave the current screen: finish saves, protect a live recording and unsaved templates.
+async function canLeave() {
+  if (busy) return false;
+  if (isRecording()) { toast("Stop or discard the recording first."); return false; }
+  if (leaveGuard?.() && !(await confirmBox({ title: "Leave without saving?", body: "Your changes on this screen haven't been saved.", confirmLabel: "Leave without saving", danger: true }))) return false;
+  leaveGuard = null;
+  if (dirty) await save();
+  await flushMeeting(ctx);
+  return true;
+}
+async function go(next, param = null) {
+  if (!(await canLeave())) return false;
+  view = next; viewParam = param; renderApp(); window.scrollTo(0, 0); closeSide();
+  return true;
+}
+async function loadClients() {
+  const { data, error } = await supabase.from("clients").select("id, name, reference, email, phone, notes, updated_at").order("name").limit(2000);
+  if (!error) clients = data || [];
+  return clients;
+}
+// Start a new record, optionally for a client and/or from a meeting (Clients and Meetings screens).
+async function startRecord({ client = null, meeting = null, notes = "" } = {}) {
+  if (!(await canLeave())) return;
+  S = blank(); view = "record"; closeSide(); window.scrollTo(0, 0);
+  if (client) { S.clientId = client.id; S.meta.client = client.name; S.meta.ref = client.reference || ""; }
+  if (meeting) { S.meetingId = meeting.id; if (meeting.meeting_date) S.meta.date = meeting.meeting_date; }
+  S.notes = notes; tab = "notes"; $("#savestate").textContent = "";
+  if (meeting) log("Started from a recorded meeting");
+  renderApp();
+  if (S.notes.trim()) {
+    await save();
+    if (meeting) await supabase.from("meetings").update({ record_id: S.id }).eq("id", meeting.id);
+  }
+}
+// Shared context handed to the Clients / Meetings / Templates / Compliance screens.
+const ctx = {
+  supabase, $, esc, toast, confirmBox, fmtDate, fmtTime, today, SECTIONS, STATUS_LABEL,
+  fnUrl: `${SUPABASE_URL}/functions/v1`, anonKey: SUPABASE_ANON_KEY,
+  get session() { return session; }, get profile() { return profile; },
+  records: () => records, clients: () => clients, loadClients, saveProfile,
+  go, openRecord: (id) => openRecord(id), startRecord, setLeaveGuard: (fn) => { leaveGuard = fn; },
+};
 
 /* ---------------- Account ---------------- */
 function renderAccount() {
@@ -259,7 +318,7 @@ function renderList() {
     </div>`;
   }
   c.querySelectorAll("[data-act=new]").forEach((b) => b.addEventListener("click", newRecord));
-  c.querySelectorAll("[data-act=example]").forEach((b) => b.addEventListener("click", () => { newRecord(); loadExample(); }));
+  c.querySelectorAll("[data-act=example]").forEach((b) => b.addEventListener("click", async () => { await newRecord(); if (view === "record") loadExample(); }));
   c.querySelectorAll("[data-open]").forEach((tr) => {
     const open = () => openRecord(tr.dataset.open);
     tr.addEventListener("click", (e) => { if (e.target.closest("[data-del]")) return; open(); });
@@ -279,8 +338,7 @@ function renderList() {
   }));
 }
 async function openRecord(id) {
-  if (busy) return;
-  if (dirty) await save();
+  if (!(await canLeave())) return;
   if (id !== S.id) {
     const { data, error } = await supabase.from("records").select("data").eq("id", id).single();
     if (error || !data) { toast("Couldn't open that record."); return; }
@@ -289,9 +347,8 @@ async function openRecord(id) {
   view = "record"; tab = S.sections ? (S.status === "signed" ? "signoff" : "document") : "notes";
   renderApp(); window.scrollTo(0, 0);
 }
-function newRecord() {
-  if (busy) return;
-  if (dirty) save();
+async function newRecord() {
+  if (!(await canLeave())) return;
   S = blank(); view = "record"; tab = "notes"; $("#savestate").textContent = "";
   renderApp(); window.scrollTo(0, 0); closeSide();
 }
@@ -352,6 +409,7 @@ function renderNotes() {
   $("#tabBody").innerHTML = `
   <div class="notes-grid">
     <section class="card" aria-label="Meeting details and notes">
+      <div class="client-link" id="clientLink"></div>
       <div class="meta-grid">
         <label class="f">Client name<input type="text" id="m_client" autocomplete="off"></label>
         <label class="f">Client reference <span class="hint" style="display:inline">(optional)</span><input type="text" id="m_ref" autocomplete="off" placeholder="Your own reference, not an ID number"></label>
@@ -379,6 +437,8 @@ function renderNotes() {
   </div>`;
   const bind = (id, key) => { const el = $("#" + id); el.value = m[key] || ""; el.addEventListener("input", () => { m[key] = el.value; dirty = true; scheduleSave(); }); el.addEventListener("change", renderHeaderOnly); };
   bind("m_client", "client"); bind("m_ref", "ref"); bind("m_date", "date");
+  renderClientLink();
+  $("#m_client").addEventListener("input", renderClientLink);
   $("#m_area").addEventListener("change", (e) => { m.area = e.target.value; dirty = true; scheduleSave(); renderHeaderOnly(); });
   const n = $("#notes"); n.value = S.notes;
   const upd = () => { const w = S.notes.trim() ? S.notes.trim().split(/\s+/).length : 0; $("#count").textContent = w ? `${w} words` : ""; };
@@ -387,6 +447,29 @@ function renderNotes() {
   $("#exampleBtn").addEventListener("click", async () => { if (S.notes.trim() && !(await confirmBox({ title: "Replace your notes?", body: "Your current notes will be replaced with the example meeting.", confirmLabel: "Replace notes" }))) return; loadExample(); });
   $("#draftBtn").addEventListener("click", () => draft(!!S.sections));
   if (S.sections) $("#capStatus").innerHTML = `<p class="note" style="margin-top:12px">Drafting again replaces the sections and flagged items, and clears any sign-off.</p>`;
+}
+
+// Link the record to a saved client (fills name + reference), or save the typed name as a new client.
+function renderClientLink() {
+  const el = $("#clientLink"); if (!el) return;
+  const linked = clients.find((c) => c.id === S.clientId), ro = locked();
+  const typed = S.meta.client.trim(), known = clients.some((c) => c.name.trim().toLowerCase() === typed.toLowerCase());
+  el.innerHTML = `<label class="f">Client record
+      <select id="m_clientSel" ${ro ? "disabled" : ""}><option value="">${clients.length ? "Not linked to a saved client" : "No saved clients yet"}</option>${clients.map((c) => `<option value="${esc(c.id)}" ${c.id === S.clientId ? "selected" : ""}>${esc(c.name)}${c.reference ? ` (${esc(c.reference)})` : ""}</option>`).join("")}</select></label>
+    ${linked ? `<button class="linkbtn" id="m_openClient">View client</button>` : (!ro && typed && !known ? `<button class="linkbtn" id="m_saveClient">Save "${esc(typed.slice(0, 40))}" as a client</button>` : "")}`;
+  $("#m_clientSel").addEventListener("change", (e) => {
+    const c = clients.find((x) => x.id === e.target.value);
+    S.clientId = c ? c.id : null;
+    if (c) { S.meta.client = c.name; if (c.reference) S.meta.ref = c.reference; $("#m_client").value = S.meta.client; $("#m_ref").value = S.meta.ref; log(`Linked to client ${c.name}`); }
+    dirty = true; scheduleSave(); renderHeaderOnly(); renderClientLink();
+  });
+  $("#m_openClient")?.addEventListener("click", () => go("client", S.clientId));
+  $("#m_saveClient")?.addEventListener("click", async () => {
+    const { data, error } = await supabase.from("clients").insert({ name: S.meta.client.trim(), reference: S.meta.ref.trim() }).select("id, name, reference, email, phone, notes, updated_at").single();
+    if (error) { toast("Couldn't save the client. Try again."); return; }
+    clients.push(data); clients.sort((a, b) => a.name.localeCompare(b.name));
+    S.clientId = data.id; log(`Saved and linked client ${data.name}`); dirty = true; scheduleSave(); renderClientLink(); toast("Client saved");
+  });
 }
 
 /* ---------------- Drafting ---------------- */
@@ -414,9 +497,22 @@ function addRuleGaps(sections, gaps, replacement) {
     gaps.push({ id: gid(), section_id: "replacement", severity: "critical", issue: "An existing product is being replaced, but the replacement analysis is incomplete.", fix: "Record termination charges, a cost comparison, tax impact and any benefits the client loses.", state: "open", note: "", source: "rule" });
   return gaps;
 }
+const NOTES_MAX = 150000; // matches LIMITS.notes in supabase/functions/ai/prompts.ts
+// Templates → "standard wording" is the advisor's own text, appended (not generated) after drafting.
+function applyStandardWording(sections) {
+  const added = [];
+  Object.entries(profile.template || {}).forEach(([id, e]) => {
+    const std = (e?.standard || "").trim(), s = sections[id]; if (!std || !s) return;
+    s.content = s.content ? `${s.content}\n\n${std}` : std; s.original = s.content; s.standard = true;
+    if (s.status === "not_captured") s.status = "partial";
+    added.push(id);
+  });
+  return added;
+}
 async function draft(again) {
   if (busy) return;
   const st = $("#capStatus");
+  if (S.notes.length > NOTES_MAX) { st.innerHTML = `<div class="err">These notes are too long to draft in one go (${S.notes.length.toLocaleString("en-ZA")} characters; the limit is ${NOTES_MAX.toLocaleString("en-ZA")}). Remove small talk or split the meeting into two records.</div>`; return; }
   if (S.notes.trim().split(/\s+/).length < 25) { st.innerHTML = `<div class="err">Add more detail to the notes first. A useful record needs at least what the client wants, what you recommended and why.</div>`; return; }
   busy = new AbortController(); $("#draftBtn").disabled = true; $("#exampleBtn").disabled = true;
   const started = Date.now();
@@ -426,7 +522,9 @@ async function draft(again) {
   try {
     const raw = await ai("draft", { notes: S.notes, meta: { client: S.meta.client, area: S.meta.area, date: S.meta.date } }, busy.signal);
     const d = normalizeDraft(raw);
+    const std = applyStandardWording(d.sections);
     S.summary = d.summary; S.replacement = d.replacement; S.sections = d.sections; S.gaps = addRuleGaps(d.sections, d.gaps, d.replacement);
+    if (std.length) log(`Added your standard wording to: ${std.map((id) => SEC_TITLE[id]).join(", ")}`);
     S.signoff = { outcome: "", declared: false, override: "", signedAt: null, signedBy: S.signoff.signedBy || "" }; S.status = "draft";
     log(again ? "Record redrafted from notes" : "Record drafted from notes");
     clearInterval(timer); busy = null; tab = "document"; renderRecord(); window.scrollTo(0, 0); save();
@@ -456,6 +554,7 @@ function renderDocument() {
       ${s.status === "not_captured" && !na ? `<p class="sec-hint">${esc(hint)}</p>` : ""}
       <div class="sec-body"><textarea data-sec="${id}" aria-label="${esc(title)}" rows="2" ${ro ? "readonly" : ""} placeholder="${na ? "Not applicable: no existing product is being replaced." : "Not captured in the notes. Add it here or resolve the flagged item."}"></textarea></div>
       ${s.evidence.length ? `<div class="evidence">From your notes: ${s.evidence.map((q) => `<q>${esc(q)}</q>`).join(" · ")}</div>` : ""}
+      ${s.standard ? `<div class="evidence">Includes your standard wording from Templates.</div>` : ""}
       <div class="sec-msg" id="msg-${id}" aria-live="polite"></div>
     </section>`;
   }).join("");
@@ -731,7 +830,8 @@ async function exportRecord(kind, versionId, btn) {
 function closeSide() { $("#side").classList.remove("open"); $("#menuBtn").setAttribute("aria-expanded", "false"); }
 $("#menuBtn").addEventListener("click", () => { const o = $("#side").classList.toggle("open"); $("#menuBtn").setAttribute("aria-expanded", String(o)); });
 $("#newRec").addEventListener("click", newRecord);
-$("#navRecords").addEventListener("click", async () => { if (busy) return; if (dirty) await save(); view = "list"; renderApp(); closeSide(); });
+$("#navRecords").addEventListener("click", () => go("list"));
+document.querySelectorAll("[data-nav]").forEach((b) => b.addEventListener("click", () => go(b.dataset.nav)));
 // Account menu (bottom of the sidebar): opens upwards; Esc or clicking elsewhere closes it.
 function setAcctMenu(open) { $("#acctMenu").hidden = !open; $("#acctBtn").setAttribute("aria-expanded", String(open)); }
 function renderAcctBtn() {
@@ -745,10 +845,10 @@ function renderAcctBtn() {
 $("#acctBtn").addEventListener("click", (e) => { e.stopPropagation(); setAcctMenu($("#acctMenu").hidden); });
 document.addEventListener("click", (e) => { if (!e.target.closest("#acct")) setAcctMenu(false); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#acctMenu").hidden) { setAcctMenu(false); $("#acctBtn").focus(); } });
-$("#navAccount").addEventListener("click", async () => { setAcctMenu(false); if (busy) return; if (dirty) await save(); view = "account"; renderApp(); closeSide(); });
-$("#searchBox").addEventListener("input", async (e) => { query = e.target.value; if (view !== "list") { if (busy) return; if (dirty) await save(); view = "list"; } renderApp(); });
+$("#navAccount").addEventListener("click", () => { setAcctMenu(false); go("account"); });
+$("#searchBox").addEventListener("input", async (e) => { query = e.target.value; if (view !== "list") { if (!(await go("list"))) return; } else renderApp(); });
 $("#signOut").addEventListener("click", async () => { if (dirty) await save(); await supabase.auth.signOut(); });
-window.addEventListener("beforeunload", (e) => { if (dirty) { save(); e.preventDefault(); } });
+window.addEventListener("beforeunload", (e) => { if (dirty) save(); if (dirty || isRecording() || leaveGuard?.()) e.preventDefault(); });
 
 /* ---------------- Auth ---------------- */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -877,6 +977,7 @@ async function startApp() {
   document.title = "Quilla · Advice records";
   renderAcctBtn();
   await loadProfile(); renderAcctBtn();
+  await loadClients();
   await loadRecords();
   const params = new URLSearchParams(location.search);
   if (params.get("view") === "account") {

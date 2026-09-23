@@ -10,9 +10,10 @@
 // SUPABASE_URL, SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { draftPrompt, improvePrompt, recheckPrompt, SECTION_IDS } from "./prompts.ts";
+import { cleanTemplate, draftPrompt, improvePrompt, LIMITS, recheckPrompt, SECTION_IDS } from "./prompts.ts";
 
-const MODEL = Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-5";
+// Secrets are trimmed: a value pasted with a trailing newline otherwise breaks the API call.
+const MODEL = (Deno.env.get("ANTHROPIC_MODEL") ?? "").trim() || "claude-sonnet-5";
 const HOURLY_LIMIT = Number(Deno.env.get("AI_HOURLY_LIMIT") ?? "40");
 const ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "https://app.quilla.co.za").split(",").map((s) => s.trim());
 const MAX_TOKENS: Record<string, number> = { draft: 8000, recheck: 3000, improve: 2000 };
@@ -51,9 +52,17 @@ Deno.serve(async (req) => {
   // 2. Rate limit per user.
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count } = await admin.from("ai_usage").select("id", { count: "exact", head: true })
-    .eq("user_id", user.id).gte("created_at", since);
+  const { count, error: countErr } = await admin.from("ai_usage").select("id", { count: "exact", head: true })
+    .eq("user_id", user.id).neq("kind", "transcribe").gte("created_at", since);
+  // Fail closed: if usage can't be counted, don't let the call through unmetered.
+  if (countErr) { console.error("usage_count_error", countErr.code); return json(req, 500, { error: "server_error" }); }
   if ((count ?? 0) >= HOURLY_LIMIT) return json(req, 429, { error: "rate_limited" });
+
+  // The advisor's section template, read with their own token so RLS applies.
+  const loadTemplate = async () => {
+    const { data } = await userClient.from("profiles").select("template").eq("id", user.id).maybeSingle();
+    return cleanTemplate(data?.template);
+  };
 
   // 3. Validate input and build the prompt.
   let body: { kind?: string; input?: Record<string, unknown> };
@@ -63,13 +72,13 @@ Deno.serve(async (req) => {
   let prompt: string;
   try {
     if (kind === "draft") {
-      if (typeof input.notes !== "string" || input.notes.trim().length < 20) throw new Error("notes");
-      prompt = draftPrompt({ notes: input.notes, meta: (input.meta ?? {}) as Record<string, string> });
+      if (typeof input.notes !== "string" || input.notes.trim().length < 20 || input.notes.length > LIMITS.notes) throw new Error("notes");
+      prompt = draftPrompt({ notes: input.notes, meta: (input.meta ?? {}) as Record<string, string> }, await loadTemplate());
     } else if (kind === "recheck") {
       prompt = recheckPrompt(input as never);
     } else if (kind === "improve") {
       if (!SECTION_IDS.includes(String(input.section_id)) || typeof input.content !== "string") throw new Error("section");
-      prompt = improvePrompt(input as never);
+      prompt = improvePrompt(input as never, await loadTemplate());
     } else {
       return json(req, 400, { error: "unknown_kind" });
     }
@@ -81,7 +90,7 @@ Deno.serve(async (req) => {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
-      "x-api-key": Deno.env.get("ANTHROPIC_API_KEY")!,
+      "x-api-key": (Deno.env.get("ANTHROPIC_API_KEY") ?? "").trim(),
       "anthropic-version": "2023-06-01",
       "content-type": "application/json",
     },

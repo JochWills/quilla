@@ -48,6 +48,20 @@ Order matters: **Supabase → AI function → app config → GitHub → Render �
    ```
 3. Set a monthly spend limit in the Anthropic console.
 
+## 2b. The `transcribe` edge function (Deepgram)
+
+Optional: without it, Meetings still accept transcript files and pasted text.
+
+1. Create an API key at https://console.deepgram.com.
+2. Set secrets and deploy:
+   ```bash
+   supabase secrets set DEEPGRAM_API_KEY=...
+   # optional:
+   supabase secrets set TRANSCRIBE_HOURLY_LIMIT=10
+   supabase functions deploy transcribe
+   ```
+3. Before recording real clients: add Deepgram to the privacy policy as a sub-processor (cross-border processing under POPIA) and confirm your consent wording.
+
 ## 3. App config
 
 Edit `app/js/config.js` with values from Supabase → Project Settings → API:

@@ -6,6 +6,10 @@
 - Supabase schema with row level security; server-side AI function with rate limiting and usage logging.
 - Signed-record integrity: each sign-off seals an immutable, versioned snapshot with a server-computed SHA-256 fingerprint; signed records are read-only and reopening creates a new version.
 - PDF and Word (.docx) export with practice branding, generated from the sealed version.
+- Clients: client list and pages; records and meetings link to a client.
+- Meetings: consent capture, in-browser recording or audio upload, Deepgram transcription (audio deleted afterwards), transcript files (.vtt/.srt/.txt/.docx), speaker naming, start a record from a meeting.
+- Templates: per-section guidance for the AI and standard wording.
+- Compliance dashboard: drafts needing attention, overrides, sealing status and retention dates.
 
 ## Before public launch (must do)
 - [ ] Register CIPC trademark for "Quilla" (classes 9 and 42) and confirm the company/trading name.
@@ -19,9 +23,7 @@
 ## Next features
 - **Payments**: Paystack subscriptions (ZAR), plan limits enforced in the `ai` function.
 - **Practices**: organisations, multiple advisors, compliance officer read/review role.
-- **Practice templates**: custom section order/wording per practice.
-- **Transcript upload / recording** with consent capture.
-- **Client records**: link multiple ROAs to one client; reuse client details.
+- **Practice templates**: shared across a practice (today they're per advisor), and custom section order.
 - **TrailBook integration**: pull commission data into "Remuneration and conflicts".
 - Shared `SECTIONS` definition between app and function (single source of truth).
 - Move the app to Vite + TypeScript once it grows beyond one file.

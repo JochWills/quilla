@@ -45,10 +45,10 @@
       <a class="logo" href="https://quilla.co.za">Quilla</a>
       <button class="btn btn-primary btn-sm newbtn" id="newRec"><svg class="arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>New record</button>
       <button class="nav-item" id="navRecords"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>Advice records<span class="count" id="recCount"></span></button>
-      <button class="nav-item" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>Clients<span class="soon">Soon</span></button>
-      <button class="nav-item" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>Meetings<span class="soon">Soon</span></button>
-      <button class="nav-item" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 10v10"/></svg>Templates<span class="soon">Soon</span></button>
-      <button class="nav-item" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Compliance<span class="soon">Soon</span></button>
+      <button class="nav-item" id="navClients" data-nav="clients"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>Clients</button>
+      <button class="nav-item" id="navMeetings" data-nav="meetings"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>Meetings</button>
+      <button class="nav-item" id="navTemplates" data-nav="templates"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 10v10"/></svg>Templates</button>
+      <button class="nav-item" id="navCompliance" data-nav="compliance"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>Compliance</button>
       <div class="acct" id="acct">
         <div class="acct-menu" id="acctMenu" role="menu" aria-labelledby="acctBtn" hidden>
           <div class="acct-email" id="acctEmail"></div>

@@ -23,7 +23,39 @@ export const SECTIONS: [string, string, string][] = [
 export const SECTION_IDS = SECTIONS.map((s) => s[0]);
 const TITLE: Record<string, string> = Object.fromEntries(SECTIONS.map((s) => [s[0], s[1]]));
 
-export const LIMITS = { notes: 40000, section: 6000, record: 40000 };
+// notes: long enough for a ~1.5 hour meeting transcript. The app refuses anything longer
+// rather than letting it be cut off silently.
+export const LIMITS = { notes: 150000, section: 6000, record: 40000, guidance: 500, standard: 2000 };
+
+// The advisor's own template (Templates screen), loaded server-side from their profile.
+// guidance: how they want a section written or what they always record.
+// standard: fixed wording the app appends to that section after drafting.
+export type Template = Record<string, { guidance?: string; standard?: string }>;
+export function cleanTemplate(t: unknown): Template {
+  const out: Template = {};
+  if (!t || typeof t !== "object") return out;
+  for (const id of SECTIONS.map((s) => s[0])) {
+    const e = (t as Record<string, { guidance?: unknown; standard?: unknown }>)[id];
+    if (!e) continue;
+    const guidance = typeof e.guidance === "string" ? e.guidance.trim().slice(0, LIMITS.guidance) : "";
+    const standard = typeof e.standard === "string" ? e.standard.trim().slice(0, LIMITS.standard) : "";
+    if (guidance || standard) out[id] = { guidance, standard };
+  }
+  return out;
+}
+function templateBlock(t: Template): string {
+  const lines = Object.entries(t).flatMap(([id, e]) => [
+    e.guidance ? `- ${id} (house style): ${e.guidance}` : "",
+    e.standard ? `- ${id} (standard wording the app will add after this section, so don't flag what it covers and don't copy it into content): ${e.standard}` : "",
+  ].filter(Boolean));
+  if (!lines.length) return "";
+  return `
+The advisor's own template. Follow the house style for wording and for what to look for in the notes. It is never a source of facts: if the notes don't say it, it isn't in the record.
+"""
+${lines.join("\n")}
+"""
+`;
+}
 
 export interface DraftInput { notes: string; meta: { client?: string; area?: string; date?: string } }
 export interface RecheckInput {
@@ -33,7 +65,7 @@ export interface RecheckInput {
 }
 export interface ImproveInput { section_id: string; content: string; notes: string }
 
-export function draftPrompt(i: DraftInput): string {
+export function draftPrompt(i: DraftInput, t: Template = {}): string {
   const m = i.meta || {};
   return `You are drafting a South African FAIS Record of Advice (ROA) for a financial advisor, from the advisor's own meeting notes. You document the advice; you never give advice.
 
@@ -48,6 +80,7 @@ Rules:
 Sections (id: title. what belongs there):
 ${SECTIONS.map((s) => `- ${s[0]}: ${s[1]}. ${s[2]}`).join("\n")}
 
+${templateBlock(t)}
 Details entered by the advisor:
 Client: ${m.client || "not given"}
 Advice area: ${m.area || "not given"}
@@ -81,7 +114,7 @@ ${record.slice(0, LIMITS.record)}
 Reply with only JSON: {"gaps":[{"section_id":"one of: ${SECTION_IDS.join(", ")}","severity":"critical|important|minor","issue":"one sentence","fix":"one sentence"}]}. Return an empty array if nothing needs flagging.`;
 }
 
-export function improvePrompt(i: ImproveInput): string {
+export function improvePrompt(i: ImproveInput, t: Template = {}): string {
   return `You are improving one section of a South African FAIS Record of Advice written by a financial advisor.
 
 Rewrite the section below in clear, formal, compliance-ready wording, in the third person.
@@ -92,14 +125,14 @@ Strict rules:
 - If the current text says something the notes contradict, keep the current text.
 
 Section: ${TITLE[i.section_id] || i.section_id}
-Current text:
+${t[i.section_id]?.guidance ? `The advisor's house style for this section (wording only, never a source of facts): ${t[i.section_id].guidance}\n` : ""}Current text:
 """
 ${i.content.slice(0, LIMITS.section)}
 """
 
 Meeting notes (for reference only):
 """
-${(i.notes || "").slice(0, 30000)}
+${(i.notes || "").slice(0, LIMITS.notes)}
 """
 
 Reply with only JSON: {"content":"the improved section text"}`;
