@@ -19,18 +19,41 @@ function readFields(prefix) {
 }
 
 /* ---------------- List ---------------- */
-export async function renderClients(ctx) {
-  const { $, esc } = ctx;
-  await ctx.loadClients();
-  const { data: mt } = await ctx.supabase.from("meetings").select("client_id");
-  const meetingsBy = {}; (mt || []).forEach((m) => { if (m.client_id) meetingsBy[m.client_id] = (meetingsBy[m.client_id] || 0) + 1; });
+// Screens draw at once from what's already loaded (clients load at sign-in; meetings are cached
+// from the last visit), then refresh in the background and repaint only if something changed.
+const MEETING_COLS = "id, title, meeting_date, kind, client_id, transcript_source, transcription_status, record_id";
+let meetingsCache = null;
+async function refreshMeetings(ctx) {
+  const { data, error } = await ctx.supabase.from("meetings").select(MEETING_COLS).order("meeting_date", { ascending: false }).limit(2000);
+  if (!error) meetingsCache = data || [];
+  return meetingsCache || [];
+}
+
+export function renderClients(ctx) {
+  const seq = ctx.seq();
+  let shown = "";
+  const paint = () => {
+    const html = clientsHtml(ctx);
+    if (html === shown) return;
+    shown = html; ctx.$("#content").innerHTML = html; bindClients(ctx);
+  };
+  paint();
+  Promise.all([ctx.loadClients(), refreshMeetings(ctx)]).then(() => { if (ctx.seq() === seq) paint(); });
+}
+function clientsHtml(ctx) {
+  const { esc } = ctx;
+  const meetingsBy = {}; (meetingsCache || []).forEach((m) => { if (m.client_id) meetingsBy[m.client_id] = (meetingsBy[m.client_id] || 0) + 1; });
   const recordsBy = {}; ctx.records().forEach((r) => { if (r.client_id) recordsBy[r.client_id] = (recordsBy[r.client_id] || 0) + 1; });
   const clients = ctx.clients();
-  $("#content").innerHTML = `
+  const mCount = (id) => (meetingsCache ? meetingsBy[id] || 0 : "…");
+  return `
     <div class="list-head"><div><h1>Clients</h1><div class="rec-sub">${clients.length} client${clients.length === 1 ? "" : "s"}</div></div><button class="btn btn-primary btn-sm" id="addClient">New client</button></div>
     ${clients.length ? `<div class="card" style="overflow-x:auto"><table class="rtable"><thead><tr><th>Client</th><th class="hide-sm">Reference</th><th>Records</th><th class="hide-sm">Meetings</th><th class="hide-sm">Updated</th></tr></thead><tbody>
-      ${clients.map((c) => `<tr data-client="${esc(c.id)}" tabindex="0"><td class="client">${esc(c.name)}</td><td class="hide-sm">${esc(c.reference || "—")}</td><td>${recordsBy[c.id] || 0}</td><td class="hide-sm">${meetingsBy[c.id] || 0}</td><td class="hide-sm">${esc(ctx.fmtDate(String(c.updated_at).slice(0, 10)))}</td></tr>`).join("")}
+      ${clients.map((c) => `<tr data-client="${esc(c.id)}" tabindex="0"><td class="client">${esc(c.name)}</td><td class="hide-sm">${esc(c.reference || "—")}</td><td>${recordsBy[c.id] || 0}</td><td class="hide-sm">${mCount(c.id)}</td><td class="hide-sm">${esc(ctx.fmtDate(String(c.updated_at).slice(0, 10)))}</td></tr>`).join("")}
     </tbody></table></div>` : `<div class="card empty"><h2>Keep your clients in one place</h2><p>Add a client once, then start their Records of Advice and meetings from their page. Their name and reference fill in for you.</p><button class="btn btn-primary" id="addClient2">Add your first client</button></div>`}`;
+}
+function bindClients(ctx) {
+  const { $ } = ctx;
   const openForm = () => newClientDialog(ctx);
   $("#addClient").addEventListener("click", openForm);
   $("#addClient2")?.addEventListener("click", openForm);
@@ -71,12 +94,23 @@ function newClientDialog(ctx) {
 
 /* ---------------- Client page ---------------- */
 export async function renderClient(ctx, id) {
-  const { $, esc } = ctx;
+  const seq = ctx.seq();
+  const cached = ctx.clients().find((x) => x.id === id);
+  if (cached) drawClient(ctx, id, cached, meetingsCache?.filter((m) => m.client_id === id) ?? null);
   const [{ data: c }, { data: meetings }] = await Promise.all([
     ctx.supabase.from("clients").select("*").eq("id", id).maybeSingle(),
-    ctx.supabase.from("meetings").select("id, title, meeting_date, kind, transcript_source, transcription_status, record_id").eq("client_id", id).order("meeting_date", { ascending: false }),
+    ctx.supabase.from("meetings").select(MEETING_COLS).eq("client_id", id).order("meeting_date", { ascending: false }),
   ]);
+  if (ctx.seq() !== seq) return; // moved on meanwhile
   if (!c) { ctx.toast("Couldn't find that client."); ctx.go("clients"); return; }
+  // Repaint only if the fresh data differs, and never over details the advisor is editing.
+  const editing = ctx.$("#content").querySelector("[id^='cl_']:focus") || ctx.$("#content").dataset.clDirty === "1";
+  const same = cached && JSON.stringify(pick(cached)) === JSON.stringify(pick(c)) && ctx.$("#content").dataset.clMeetings === JSON.stringify(meetings || []);
+  if (!cached || (!same && !editing)) drawClient(ctx, id, c, meetings || []);
+}
+const pick = (c) => [c.name, c.reference, c.email, c.phone, c.notes];
+function drawClient(ctx, id, c, meetings) {
+  const { $, esc } = ctx;
   const recs = ctx.records().filter((r) => r.client_id === id);
   $("#content").innerHTML = `
     ${ctx.crumbs([["Clients", "clients"], [c.name]])}
@@ -90,7 +124,7 @@ export async function renderClient(ctx, id) {
         </section>
         <section class="card" style="padding:22px;margin-top:18px">
           <h3 class="sub">Meetings</h3>
-          ${meetings?.length ? `<ul class="plain-list">${meetings.map((m) => `<li><button class="row-link" data-meeting="${esc(m.id)}"><span>${esc(m.title || "Meeting")}<span class="note"> · ${esc(ctx.fmtDate(m.meeting_date))}</span></span><span class="note">${esc(transcriptLabel(m))}</span></button></li>`).join("")}</ul>` : `<p class="note" style="margin:0">No meetings yet.</p>`}
+          ${meetings === null ? `<p class="note" style="margin:0">Loading…</p>` : meetings.length ? `<ul class="plain-list">${meetings.map((m) => `<li><button class="row-link" data-meeting="${esc(m.id)}"><span>${esc(m.title || "Meeting")}<span class="note"> · ${esc(ctx.fmtDate(m.meeting_date))}</span></span><span class="note">${esc(transcriptLabel(m))}</span></button></li>`).join("")}</ul>` : `<p class="note" style="margin:0">No meetings yet.</p>`}
         </section>
       </div>
       <aside class="card">
@@ -100,6 +134,9 @@ export async function renderClient(ctx, id) {
         <div id="cl_msg" aria-live="polite"></div>
       </aside>
     </div>`;
+  $("#content").dataset.clMeetings = JSON.stringify(meetings || []);
+  $("#content").dataset.clDirty = "0";
+  $("#content").querySelectorAll("[id^='cl_']").forEach((el) => el.addEventListener("input", () => { $("#content").dataset.clDirty = "1"; }));
   $("#cNewRecord").addEventListener("click", () => ctx.startRecord({ client: c }));
   $("#cNewMeeting").addEventListener("click", () => ctx.go("meeting", { clientId: c.id }));
   $("#content").querySelectorAll("[data-rec]").forEach((b) => b.addEventListener("click", () => ctx.openRecord(b.dataset.rec)));
@@ -109,7 +146,7 @@ export async function renderClient(ctx, id) {
     if (!row.name) { $("#cl_msg").innerHTML = `<div class="err">The client needs a name.</div>`; return; }
     const { error } = await ctx.supabase.from("clients").update(row).eq("id", id);
     if (error) { $("#cl_msg").innerHTML = `<div class="err">Couldn't save. Try again.</div>`; return; }
-    await ctx.loadClients(); ctx.toast("Client saved"); renderClient(ctx, id);
+    await ctx.loadClients(); ctx.toast("Client saved"); $("#content").dataset.clDirty = "0"; renderClient(ctx, id);
   });
   $("#cl_del").addEventListener("click", async () => {
     const ok = await ctx.confirmBox({ title: `Delete ${c.name}?`, body: "Their Records of Advice and meetings are kept, but no longer linked to a client. This can't be undone.", confirmLabel: "Delete client", danger: true });

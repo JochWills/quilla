@@ -24,16 +24,34 @@ let rec = null;          // in-progress recording {mr, stream, chunks, started, 
 let saveTimer = null;
 
 /* ---------------- List ---------------- */
+// The list draws at once from the last visit's rows, then refreshes in the background and
+// repaints only if something changed.
+let listCache = null;
 export async function renderMeetings(ctx) {
-  const { $, esc } = ctx;
+  const seq = ctx.seq();
+  let shown = "";
+  const paint = (rows, error) => {
+    const html = meetingsHtml(ctx, rows, error);
+    if (html === shown) return;
+    shown = html; ctx.$("#content").innerHTML = html; bindMeetings(ctx);
+  };
+  if (listCache) paint(listCache, null);
+  else ctx.$("#content").innerHTML = `<div class="list-head"><div><h1>Meetings</h1><div class="rec-sub">Loading…</div></div></div>`;
   const { data, error } = await ctx.supabase.from("meetings").select("id, title, meeting_date, kind, client_id, transcript_source, transcription_status, record_id").order("meeting_date", { ascending: false }).limit(500);
-  const rows = data || [];
+  if (!error) listCache = data || [];
+  if (ctx.seq() === seq) paint(listCache || [], error && !listCache);
+}
+function meetingsHtml(ctx, rows, error) {
+  const { esc } = ctx;
   const name = (id) => ctx.clients().find((c) => c.id === id)?.name || "—";
-  $("#content").innerHTML = `
+  return `
     <div class="list-head"><div><h1>Meetings</h1><div class="rec-sub">${rows.length} meeting${rows.length === 1 ? "" : "s"}</div></div><button class="btn btn-primary btn-sm" id="addMeeting">New meeting</button></div>
     ${error ? `<div class="err">Couldn't load meetings. Refresh to try again.</div>` : rows.length ? `<div class="card" style="overflow-x:auto"><table class="rtable"><thead><tr><th>Meeting</th><th>Client</th><th class="hide-sm">Date</th><th class="hide-sm">Transcript</th><th class="hide-sm">Record</th></tr></thead><tbody>
       ${rows.map((m) => `<tr data-meeting="${esc(m.id)}" tabindex="0"><td class="client">${esc(m.title || KINDS[m.kind] || "Meeting")}</td><td>${esc(name(m.client_id))}</td><td class="hide-sm">${esc(ctx.fmtDate(m.meeting_date))}</td><td class="hide-sm">${esc(transcriptLabel(m))}</td><td class="hide-sm">${m.record_id ? "Started" : "—"}</td></tr>`).join("")}
     </tbody></table></div>` : `<div class="card empty"><h2>Record a meeting, get a Record of Advice</h2><p>Log a client meeting, record it here or upload the recording or transcript from Teams, Zoom or Google Meet. Quilla turns the transcript into a draft Record of Advice.</p><button class="btn btn-primary" id="addMeeting2">New meeting</button></div>`}`;
+}
+function bindMeetings(ctx) {
+  const { $ } = ctx;
   const add = () => ctx.go("meeting", {});
   $("#addMeeting").addEventListener("click", add);
   $("#addMeeting2")?.addEventListener("click", add);

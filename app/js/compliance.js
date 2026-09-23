@@ -5,14 +5,25 @@
 const STALE_DAYS = 14;
 const KEEP_YEARS = 5; // FAIS: keep records of advice for at least five years
 
+// Draws at once from the last visit's data, then refreshes in the background and repaints only
+// if something changed.
+let cache = null, shown = "";
 export async function renderCompliance(ctx) {
-  const { $, esc } = ctx;
-  $("#content").innerHTML = `<div class="list-head"><div><h1>Compliance</h1><div class="rec-sub">Loading…</div></div></div>`;
+  const seq = ctx.seq();
+  shown = "";
+  if (cache) paint(ctx, cache.recs, cache.vers);
+  else ctx.$("#content").innerHTML = `<div class="list-head"><div><h1>Compliance</h1><div class="rec-sub">Loading…</div></div></div>`;
   const [{ data: recs, error }, { data: vers }] = await Promise.all([
     ctx.supabase.from("records").select("id, client_name, advice_area, meeting_date, status, updated_at, gaps:data->gaps, signoff:data->signoff").order("updated_at", { ascending: false }).limit(1000),
     ctx.supabase.from("record_versions").select("record_id, version, signed_at").order("version", { ascending: false }),
   ]);
-  if (error) { $("#content").innerHTML = `<div class="err">Couldn't load your records. Refresh to try again.</div>`; return; }
+  if (ctx.seq() !== seq) return; // moved on meanwhile
+  if (error) { if (!cache) ctx.$("#content").innerHTML = `<div class="err">Couldn't load your records. Refresh to try again.</div>`; return; }
+  cache = { recs, vers };
+  paint(ctx, recs, vers);
+}
+function paint(ctx, recs, vers) {
+  const { $, esc } = ctx;
 
   const latest = {}; (vers || []).forEach((v) => { if (!latest[v.record_id]) latest[v.record_id] = v; });
   const firstSeal = {}; (vers || []).forEach((v) => { if (!firstSeal[v.record_id] || v.signed_at < firstSeal[v.record_id]) firstSeal[v.record_id] = v.signed_at; });
@@ -40,7 +51,7 @@ export async function renderCompliance(ctx) {
   const tile = (n, label, tone, sub) => `<div class="card ctile ${n && tone ? tone : ""}"><b>${n}</b><span>${label}</span>${sub ? `<small>${sub}</small>` : ""}</div>`;
   const recRow = (r, cells) => `<tr data-open="${esc(r.id)}" tabindex="0"><td class="client">${esc(r.client_name || "Unnamed client")}</td>${cells}</tr>`;
 
-  $("#content").innerHTML = `
+  const html = `
     <div class="list-head"><div><h1>Compliance</h1><div class="rec-sub">Across your ${(recs || []).length} record${(recs || []).length === 1 ? "" : "s"}</div></div></div>
     <div class="ctiles">
       ${tile(drafts.length, "Awaiting sign-off", "warn", stale.length ? `${stale.length} untouched for ${STALE_DAYS}+ days` : "")}
@@ -71,6 +82,8 @@ export async function renderCompliance(ctx) {
       </tbody></table>${unsealed.length ? `<p class="note" style="margin:10px 0 0">"Not sealed" records were signed before version sealing existed. Reopen and sign them again to seal a copy.</p>` : ""}` : `<p class="note" style="margin:0">No signed records yet.</p>`}
     </section>
     <p class="disclaimer" style="max-width:720px">This overview is a working aid based on Quilla's checks. It doesn't replace your compliance officer's review.</p>`;
+  if (html === shown) return;
+  shown = html; $("#content").innerHTML = html;
   $("#content").querySelectorAll("[data-open]").forEach((tr) => {
     tr.addEventListener("click", () => ctx.openRecord(tr.dataset.open));
     tr.addEventListener("keydown", (e) => { if (e.key === "Enter") ctx.openRecord(tr.dataset.open); });

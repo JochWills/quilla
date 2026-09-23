@@ -206,8 +206,9 @@ async function save() {
 
 /* ---------------- App render ---------------- */
 const NAV_OF = { list: "list", record: "list", clients: "clients", client: "clients", meetings: "meetings", meeting: "meetings", templates: "templates", compliance: "compliance" };
+let renderSeq = 0; // bumps on every screen change; a background refresh repaints only if it still matches
 function renderApp() {
-  leaveGuard = null; $("#savestate").textContent = view === "record" ? $("#savestate").textContent : "";
+  renderSeq++; leaveGuard = null; $("#savestate").textContent = view === "record" ? $("#savestate").textContent : "";
   $("#navRecords").setAttribute("aria-current", NAV_OF[view] === "list" ? "page" : "false");
   document.querySelectorAll("[data-nav]").forEach((b) => b.setAttribute("aria-current", NAV_OF[view] === b.dataset.nav ? "page" : "false"));
   if (view === "list") renderList();
@@ -266,7 +267,7 @@ const ctx = {
   supabase, $, esc, crumbs, toast, confirmBox, fmtDate, fmtTime, today, SECTIONS, STATUS_LABEL,
   fnUrl: `${SUPABASE_URL}/functions/v1`, anonKey: SUPABASE_ANON_KEY,
   get session() { return session; }, get profile() { return profile; },
-  records: () => records, clients: () => clients, loadClients, saveProfile,
+  records: () => records, clients: () => clients, loadClients, saveProfile, seq: () => renderSeq,
   go, openRecord: (id) => openRecord(id), startRecord, setLeaveGuard: (fn) => { leaveGuard = fn; },
 };
 
