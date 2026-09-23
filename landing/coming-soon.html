@@ -5,7 +5,7 @@
 <meta name="color-scheme" content="light">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Coming soon · Quilla</title>
-<meta name="description" content="Quilla turns meeting notes into structured, compliant Records of Advice for South African financial advisors. Coming soon.">
+<meta name="description" content="Quilla turns meeting transcripts and minutes into structured, review-ready Records of Advice for South African financial advisors. Coming soon.">
 <link rel="canonical" href="https://quilla.co.za/coming-soon">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://quilla.co.za/coming-soon">
@@ -14,44 +14,67 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,500&family=Newsreader:opsz,wght@6..72,400..600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/site.css">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
 <style>
-  .soon{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:32px}
-  .soon::before,.soon::after{content:"";position:absolute;border-radius:50%;filter:blur(70px);z-index:0;pointer-events:none}
-  .soon::before{width:560px;height:560px;background:#D3E6DD;opacity:.65;top:-160px;right:-140px}
-  .soon::after{width:500px;height:500px;background:#EAD9C0;opacity:.6;bottom:-180px;left:-150px}
-  .soon-in{position:relative;z-index:1;max-width:700px;text-align:center;display:flex;flex-direction:column;align-items:center}
-  .soon-pill{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:999px;background:var(--brand-soft);color:var(--brand);font-size:13.5px;font-weight:500;margin-bottom:28px}
-  .soon-pill svg{width:14px;height:14px;flex:none}
-  .soon h1{font-family:var(--serif);font-weight:500;letter-spacing:-.015em;line-height:1.1;font-size:clamp(36px,5.4vw,58px);margin:0 0 22px;color:var(--ink)}
-  .soon h1 em{font-style:italic;color:var(--brand)}
-  .soon .lede{color:var(--muted);font-size:17px;line-height:1.65;max-width:52ch;margin:0 0 34px}
-  .soon-cta{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;margin-bottom:36px}
-  .soon-status{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
-  .soon-status i{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;flex:none}
-  .soon-checks{display:flex;gap:28px;flex-wrap:wrap;justify-content:center;font-size:13.5px;color:var(--muted)}
-  .soon-checks span{display:inline-flex;align-items:center;gap:7px}
-  .soon-checks svg{width:15px;height:15px;stroke:var(--brand);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
-  @media (max-width:560px){.soon-cta{flex-direction:column;gap:16px}}
+  :root{
+    --cs-bg:#F6F3EE; --cs-ink:#1C3530; --cs-accent:#4E7D70; --cs-muted:#5F6B68; --cs-faint:#6E7875;
+    --cs-btn:#1E3833; --cs-btn-hover:#152A26; --cs-pill-bg:#E7EFEC; --cs-pill-line:#C9DCD5; --cs-pill-ink:#2F5A50;
+    --cs-dot:#5E9A84; --cs-focus:#2B6CB0;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{background:var(--cs-bg);color:var(--cs-ink);font-family:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  :focus-visible{outline:2px solid var(--cs-focus);outline-offset:3px;border-radius:8px}
+
+  .cs{position:relative;min-height:100vh;min-height:100dvh;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:56px 20px}
+  .cs::before,.cs::after{content:"";position:absolute;border-radius:50%;pointer-events:none;z-index:0}
+  .cs::before{width:620px;height:620px;right:-150px;top:50%;transform:translateY(-52%);background:radial-gradient(circle at 40% 45%,#D9E8E0 0%,#E1ECE6 45%,rgba(225,236,230,0) 72%);filter:blur(8px)}
+  .cs::after{width:440px;height:440px;left:-150px;bottom:-110px;background:radial-gradient(circle at 55% 45%,#ECEAE3 0%,#EFEDE7 50%,rgba(239,237,231,0) 72%);filter:blur(6px)}
+
+  .cs-in{position:relative;z-index:1;max-width:1000px;width:100%;display:flex;flex-direction:column;align-items:center;text-align:center}
+
+  .cs-pill{display:inline-flex;align-items:center;gap:9px;padding:10px 18px;border-radius:999px;background:var(--cs-pill-bg);border:1px solid var(--cs-pill-line);color:var(--cs-pill-ink);font-size:15px;font-weight:500;margin-bottom:36px}
+  .cs-pill svg{width:15px;height:15px;flex:none}
+
+  .cs h1{font-family:"Playfair Display",Georgia,"Times New Roman",serif;font-weight:500;font-size:clamp(44px,7.4vw,100px);line-height:1.04;letter-spacing:-.022em;margin:0 0 30px;color:var(--cs-ink)}
+  .cs h1 em{display:block;font-style:italic;color:var(--cs-accent)}
+
+  .cs-lede{font-size:clamp(16px,1.6vw,20px);line-height:1.62;color:var(--cs-muted);max-width:40em;margin:0 0 40px}
+
+  .cs-cta{display:flex;align-items:center;justify-content:center;gap:26px;flex-wrap:wrap;margin-bottom:40px}
+  .cs-btn{display:inline-flex;align-items:center;gap:14px;padding:19px 28px;border-radius:11px;background:var(--cs-btn);color:#fff;font-weight:600;font-size:17px;text-decoration:none;box-shadow:0 10px 26px rgba(30,56,51,.22),0 2px 6px rgba(30,56,51,.12)}
+  .cs-btn:hover{background:var(--cs-btn-hover)}
+  .cs-btn svg{width:15px;height:15px;flex:none}
+  .cs-status{display:inline-flex;align-items:center;gap:10px;font-size:16px;color:var(--cs-muted)}
+  .cs-status i{position:relative;width:8px;height:8px;border-radius:50%;background:var(--cs-dot);box-shadow:0 0 0 6px rgba(94,154,132,.16);flex:none;margin-right:4px}
+
+  .cs-checks{display:flex;gap:32px;flex-wrap:wrap;justify-content:center;font-size:14px;color:var(--cs-faint)}
+  .cs-checks span::before{content:"✓";margin-right:6px}
+
+  @media (max-width:560px){
+    .cs-cta{flex-direction:column;gap:18px}
+    .cs-checks{gap:12px 22px}
+    .cs::before{width:420px;height:420px;right:-220px}
+  }
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-<div class="soon">
-  <div class="soon-in">
-    <span class="soon-pill"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0l1.4 5.1L14 7l-4.6 1.9L8 14l-1.4-5.1L2 7l4.6-1.9z"/></svg>AI for financial advisors</span>
-    <h1>From conversation to<br><em>compliant advice.</em></h1>
-    <p class="lede">Quilla turns meeting notes into structured, review-ready Records of Advice — helping South African financial advisors spend less time drafting and more time advising.</p>
-    <div class="soon-cta">
-      <a class="btn btn-primary" href="mailto:joshwilliamsza@icloud.com?subject=Quilla%20early%20access">Join the early access list <svg class="arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
-      <span class="soon-status"><i></i>Coming soon to South Africa</span>
+<main class="cs">
+  <div class="cs-in">
+    <span class="cs-pill"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0l1.5 5.2L14.5 7 9.5 8.8 8 14l-1.5-5.2L1.5 7l5-1.8z"/></svg>AI for financial advisors</span>
+    <h1>From conversation to <em>compliant advice.</em></h1>
+    <p class="cs-lede">Quilla turns meeting transcripts and minutes into structured, review-ready Records of Advice — helping South African financial advisors spend less time drafting and more time advising.</p>
+    <div class="cs-cta">
+      <a class="cs-btn" href="mailto:joshwilliamsza@icloud.com?subject=Quilla%20early%20access">Join the early access list <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 11.5l7-7M5.5 4.5h6v6"/></svg></a>
+      <span class="cs-status"><i aria-hidden="true"></i>Coming soon to South Africa</span>
     </div>
-    <div class="soon-checks">
-      <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Source-grounded drafting</span>
-      <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Built for advisor workflows</span>
-      <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Human review stays in control</span>
+    <div class="cs-checks">
+      <span>Source-grounded drafting</span>
+      <span>Built for advisor workflows</span>
+      <span>Human review stays in control</span>
     </div>
   </div>
-</div>
+</main>
 </body>
 </html>
