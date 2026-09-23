@@ -42,10 +42,10 @@ const SEV_LABEL = { critical: "Critical", important: "Important", minor: "Minor"
 const AREAS = ["Retirement planning", "Investment planning", "Risk cover", "Estate planning", "Tax-free savings", "Other"];
 
 const EXAMPLE = {
-  meta: { client: "Sarah Williams", ref: "SW-0921", area: "Retirement planning", date: "2026-09-21" },
-  notes: `Meeting 21 Sept 2026 with Sarah Williams (45), video call.
+  meta: { client: "Claire Bennett", ref: "CB-0921", area: "Retirement planning", date: "2026-09-21" },
+  notes: `Meeting 21 Sept 2026 with Claire Bennett (45), video call.
 
-Sarah is a marketing director, annual income approx R1.8m. Married, two children (9 and 13). Husband is a self-employed architect, income irregular. Home loan approx R2.4m outstanding.
+Claire is a marketing director, annual income approx R1.8m. Married, two children (9 and 13). Husband is a self-employed architect, income irregular. Home loan approx R2.4m outstanding.
 
 Goals: retire by 60 with an income of at least 70% of current income. Wants to maintain a similar lifestyle. Children's university education is a big priority, from 2031. Also concerned about tax and being structured efficiently.
 
@@ -59,7 +59,7 @@ Looked at the Karoo Global Equity fund for the TFSA but chose Northgate Balanced
 
 Fees: ongoing advice fee 0.75%, initial fee 1% on TFSA contributions, 1.5% on the RA transfer. Platform fee 0.35%. Fund TIC approx 1.1%.
 
-Sarah is happy to open the TFSA now. RA transfer on hold until the Liberty termination charge is confirmed.`,
+Claire is happy to open the TFSA now. RA transfer on hold until the Liberty termination charge is confirmed.`,
 };
 
 /* ---------------- State ---------------- */
