@@ -14,7 +14,7 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Playfair+Display:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Playfair+Display:ital,wght@0,500;1,500&family=Newsreader:opsz,wght@6..72,400..600&display=swap" rel="stylesheet">
 <style>
   :root{
     --cs-bg:#F6F3EE; --cs-ink:#1C3530; --cs-accent:#4E7D70; --cs-muted:#5F6B68; --cs-faint:#6E7875;
@@ -25,6 +25,10 @@
   html,body{margin:0;min-height:100%}
   body{background:var(--cs-bg);color:var(--cs-ink);font-family:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
   :focus-visible{outline:2px solid var(--cs-focus);outline-offset:3px;border-radius:8px}
+
+  .cs-head{position:absolute;top:0;left:0;right:0;z-index:2}
+  .cs-head .in{max-width:1160px;margin:0 auto;padding:18px 28px;display:flex;align-items:center}
+  .logo{font-family:"Newsreader","Source Serif 4",Georgia,serif;font-size:31px;font-weight:460;font-variation-settings:"opsz" 72;letter-spacing:-.012em;color:#18262C;text-decoration:none;line-height:1}
 
   .cs{position:relative;min-height:100vh;min-height:100dvh;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:56px 20px}
   .cs::before,.cs::after{content:"";position:absolute;border-radius:50%;pointer-events:none;z-index:0}
@@ -52,6 +56,8 @@
   .cs-checks span::before{content:"✓";margin-right:6px}
 
   @media (max-width:560px){
+    .cs-head .in{padding:16px 20px}
+    .cs{padding-top:88px}
     .cs-cta{flex-direction:column;gap:18px}
     .cs-checks{gap:12px 22px}
     .cs::before{width:420px;height:420px;right:-220px}
@@ -60,6 +66,7 @@
 </style>
 </head>
 <body>
+<header class="cs-head"><div class="in"><a class="logo" href="/">Quilla</a></div></header>
 <main class="cs">
   <div class="cs-in">
     <span class="cs-pill"><svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0l1.5 5.2L14.5 7 9.5 8.8 8 14l-1.5-5.2L1.5 7l5-1.8z"/></svg>AI for financial advisors</span>
