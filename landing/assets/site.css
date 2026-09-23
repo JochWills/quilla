@@ -51,6 +51,16 @@ a{color:inherit}
 .nav-links a:hover{opacity:1}
 .nav-right{margin-left:auto;display:flex;align-items:center;gap:22px;font-size:14.5px}
 .nav-right .login{text-decoration:none}
+.acct{position:relative}
+.acct-trigger{list-style:none;display:flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:var(--brand-soft);color:var(--brand);cursor:pointer;border:1px solid var(--rule-strong)}
+.acct-trigger::-webkit-details-marker{display:none}
+.acct-trigger:hover{background:color-mix(in srgb,var(--brand-soft) 70%,var(--brand) 10%)}
+.acct-trigger:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.acct-menu{position:absolute;top:calc(100% + 10px);right:0;min-width:230px;background:var(--surface);border:1px solid var(--rule);border-radius:10px;box-shadow:var(--shadow-lg);padding:6px;z-index:50}
+.acct-email{padding:9px 10px;font-size:12.5px;line-height:1.5;color:var(--muted);word-break:break-all;border-bottom:1px solid var(--rule);margin-bottom:4px}
+.acct-email b{color:var(--ink);font-weight:500}
+.acct-menu a{display:block;padding:8px 10px;border-radius:7px;font-size:14px;color:var(--ink);text-decoration:none}
+.acct-menu a:hover{background:var(--brand-tint)}
 
 .hero{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:48px;align-items:center;padding:56px 0 64px}
 .hero h1{font-size:clamp(38px,4.6vw,56px);max-width:16ch;margin:14px 0 22px}

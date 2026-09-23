@@ -9,6 +9,12 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// The landing site's "Sign out" link (no session of its own) points here with ?signout=1.
+if (new URLSearchParams(location.search).get("signout") === "1") {
+  const u = new URL(location.href); u.searchParams.delete("signout");
+  history.replaceState(null, "", u.pathname + u.search + u.hash);
+  supabase.auth.signOut();
+}
 
 /* ---------------- Constants ---------------- */
 // Keep in sync with supabase/functions/ai/prompts.ts
@@ -748,11 +754,13 @@ function renderAuth() {
   });
 }
 // A same-origin-only session isn't visible to the landing site on quilla.co.za, so on
-// sign-in/out we also set a flag-only cookie (no token) shared across the .quilla.co.za
-// domain, purely so the landing nav can show "Account" instead of "Log in / Get started".
-// This is a UX nicety, not a security boundary: real auth is the Supabase JWT + RLS.
+// sign-in/out we also set a cookie carrying just the email (no token) shared across the
+// .quilla.co.za domain, purely so the landing nav can show an account menu instead of
+// "Log in / Get started". This is a UX nicety, not a security boundary: real auth is the
+// Supabase JWT + RLS, and the landing site's "Account settings"/"Sign out" links just
+// navigate here with a query param rather than acting on the session themselves.
 function cookieDomain() { return location.hostname.endsWith("quilla.co.za") ? "; domain=.quilla.co.za" : ""; }
-function setSignedInCookie() { document.cookie = "quilla_signed_in=1; path=/; max-age=" + 60 * 60 * 24 * 180 + cookieDomain() + "; samesite=lax" + (location.protocol === "https:" ? "; secure" : ""); }
+function setSignedInCookie() { document.cookie = "quilla_signed_in=" + encodeURIComponent(session.user.email || "1") + "; path=/; max-age=" + 60 * 60 * 24 * 180 + cookieDomain() + "; samesite=lax" + (location.protocol === "https:" ? "; secure" : ""); }
 function clearSignedInCookie() { document.cookie = "quilla_signed_in=; path=/; max-age=0" + cookieDomain() + "; samesite=lax" + (location.protocol === "https:" ? "; secure" : ""); }
 async function startApp() {
   setSignedInCookie();
@@ -762,6 +770,11 @@ async function startApp() {
   await loadProfile();
   await loadRecords();
   const params = new URLSearchParams(location.search);
+  if (params.get("view") === "account") {
+    history.replaceState(null, "", "/");
+    view = "account"; renderApp();
+    return;
+  }
   if (params.get("example") === "1") {
     history.replaceState(null, "", "/");
     S = blank(); view = "record"; loadExample();
