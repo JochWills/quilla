@@ -12,7 +12,7 @@ import { renderClients, renderClient } from "./clients.js";
 import { renderMeetings, renderMeeting, isRecording, flushMeeting } from "./meetings.js";
 import { renderTemplates } from "./templates.js";
 import { renderCompliance } from "./compliance.js";
-import { initControls } from "./controls.js";
+import { initControls, openPop } from "./controls.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // The landing site's "Sign out" link (no session of its own) points here with ?signout=1.
@@ -91,7 +91,7 @@ let authMode = "signin"; // signin | signup | forgot | reset
 let busy = null; // AbortController for the in-flight AI call
 let session = null;
 let records = []; // list rows: {id, client_name, advice_area, meeting_date, status, updated_at}
-let dirty = false, query = "";
+let dirty = false;
 const improveUndo = {};
 
 /* ---------------- Helpers ---------------- */
@@ -164,10 +164,10 @@ async function ai(kind, input, signal) {
 /* ---------------- Persistence ---------------- */
 async function loadRecords() {
   const { data, error } = await supabase.from("records")
-    .select("id, client_name, advice_area, meeting_date, status, updated_at, client_id")
+    .select("id, client_name, advice_area, meeting_date, status, updated_at, client_id, archived_at")
     .order("updated_at", { ascending: false }).limit(500);
   if (!error) records = data || [];
-  $("#recCount").textContent = records.length ? String(records.length) : "";
+  setRecCount();
 }
 async function loadProfile() {
   const { data, error } = await supabase.from("profiles").select("full_name, fsp_number, practice_name, template").eq("id", session.user.id).single();
@@ -197,9 +197,9 @@ async function save() {
   else {
     dirty = false; $("#savestate").textContent = "Saved";
     const i = records.findIndex((r) => r.id === S.id);
-    const listRow = { id: S.id, client_name: row.client_name, advice_area: row.advice_area, meeting_date: row.meeting_date, status: row.status, client_id: row.client_id, updated_at: new Date().toISOString() };
+    const listRow = { id: S.id, client_name: row.client_name, advice_area: row.advice_area, meeting_date: row.meeting_date, status: row.status, client_id: row.client_id, updated_at: new Date().toISOString(), archived_at: i >= 0 ? records[i].archived_at || null : null };
     if (i >= 0) records[i] = listRow; else records.unshift(listRow);
-    $("#recCount").textContent = String(records.length);
+    setRecCount();
   }
   saving = false; if (saveAgain) { saveAgain = false; save(); }
 }
@@ -336,9 +336,61 @@ function openSettings(section = "profile") {
 }
 
 /* ---------------- Records list ---------------- */
+/* ---------------- Records list ---------------- */
+// Status tabs, in-page search, filter panel, sortable columns, row selection with bulk actions,
+// and a per-row actions menu. Archived records (archived_at set) only show under Archived.
+const IC = {
+  file: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>`,
+  box: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/></svg>`,
+  brief: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 12h18M11 12v2h2v-2"/></svg>`,
+  cal: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01"/></svg>`,
+  sort: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg>`,
+  up: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 14l4-4 4 4"/></svg>`,
+  down: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10l4 4 4-4"/></svg>`,
+  search: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>`,
+  filter: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 7.5V19l-4 2v-8.5z"/></svg>`,
+  more: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>`,
+  plus: `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>`,
+  arrow: `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>`,
+  check: `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2l2.4 2.4 4.6-4.8"/></svg>`,
+  pen: `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 6v4.2l2.6 1.6"/></svg>`,
+  note: `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10h7"/></svg>`,
+};
+const LIST_TABS = [
+  ["all", "All records", IC.file], ["notes", "Notes only", IC.file], ["draft", "Drafts", IC.file],
+  ["signed", "Signed off", `<span class="tab-dot" aria-hidden="true"></span>`], ["archived", "Archived", IC.box],
+];
+const PERIODS = [["", "Any time"], ["30", "Last 30 days"], ["90", "Last 90 days"], ["year", "This year"], ["lastyear", "Last year"]];
+let listTab = "all", listQuery = "", listSort = { key: "", dir: 1 }, listFilter = { area: "", period: "" };
+const picked = new Set();
+
+const isArchived = (r) => !!r.archived_at;
+const initials = (n) => (n || "?").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
+function inPeriod(date, p) {
+  if (!p) return true;
+  if (!date) return false;
+  const d = new Date(date + "T00:00:00"), now = new Date();
+  if (p === "year") return d.getFullYear() === now.getFullYear();
+  if (p === "lastyear") return d.getFullYear() === now.getFullYear() - 1;
+  return (now - d) / 86400000 <= +p && d <= now;
+}
+function listRows() {
+  const q = listQuery.trim().toLowerCase();
+  let rows = records.filter((r) => (listTab === "archived" ? isArchived(r) : !isArchived(r) && (listTab === "all" || r.status === listTab)));
+  if (q) rows = rows.filter((r) => `${r.client_name} ${r.advice_area} ${fmtDate(r.meeting_date)} ${STATUS_LABEL[r.status] || ""}`.toLowerCase().includes(q));
+  if (listFilter.area) rows = rows.filter((r) => r.advice_area === listFilter.area);
+  rows = rows.filter((r) => inPeriod(r.meeting_date, listFilter.period));
+  const { key, dir } = listSort;
+  if (key) {
+    const val = (r) => (key === "client" ? (r.client_name || "").toLowerCase() : key === "area" ? (r.advice_area || "").toLowerCase() : key === "date" ? r.meeting_date || "" : ["notes", "draft", "signed"].indexOf(r.status));
+    rows = [...rows].sort((a, b) => (val(a) > val(b) ? dir : val(a) < val(b) ? -dir : 0));
+  }
+  return rows;
+}
+function setRecCount() { const n = records.filter((r) => !isArchived(r)).length; $("#recCount").textContent = n ? String(n) : ""; }
+const statusPill = (s) => `<span class="pill ${esc(s)}">${s === "signed" ? IC.check : s === "draft" ? IC.pen : IC.note}${STATUS_LABEL[s] || "Draft"}</span>`;
+
 function renderList() {
-  const q = query.trim().toLowerCase();
-  const rows = q ? records.filter((r) => `${r.client_name} ${r.advice_area}`.toLowerCase().includes(q)) : records;
   const c = $("#content");
   if (!records.length) {
     c.innerHTML = `<div class="card empty">
@@ -346,34 +398,211 @@ function renderList() {
       <p>Paste your notes from a client meeting and Quilla will draft every section, then flag anything a compliance officer would query.</p>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-primary" data-act="new">Start a record</button><button class="btn" data-act="example">Try an example meeting</button></div>
     </div>`;
-  } else {
-    c.innerHTML = `<div class="list-head"><div><h1>Advice records</h1><div class="rec-sub">${records.length} record${records.length === 1 ? "" : "s"}</div></div><button class="btn btn-primary btn-sm" data-act="new">New record</button></div>
-    <div class="card" style="overflow-x:auto">
-      ${rows.length ? `<table class="rtable"><thead><tr><th>Client</th><th class="hide-sm">Advice area</th><th class="hide-sm">Meeting date</th><th>Status</th><th><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">Actions</span></th></tr></thead><tbody>
-      ${rows.map((r) => `<tr data-open="${esc(r.id)}" tabindex="0"><td class="client">${esc(r.client_name || "Unnamed client")}</td><td class="hide-sm">${esc(r.advice_area)}</td><td class="hide-sm">${esc(fmtDate(r.meeting_date))}</td><td><span class="status ${esc(r.status)}">${STATUS_LABEL[r.status] || "Draft"}</span></td><td style="text-align:right"><button class="row-del" data-del="${esc(r.id)}" aria-label="Delete record for ${esc(r.client_name || "unnamed client")}">Delete</button></td></tr>`).join("")}
-      </tbody></table>` : `<div class="empty"><p>No records match “${esc(query)}”.</p></div>`}
-    </div>`;
+    c.querySelector("[data-act=new]").addEventListener("click", newRecord);
+    c.querySelector("[data-act=example]").addEventListener("click", async () => { await newRecord(); if (view === "record") loadExample(); });
+    return;
   }
-  c.querySelectorAll("[data-act=new]").forEach((b) => b.addEventListener("click", newRecord));
-  c.querySelectorAll("[data-act=example]").forEach((b) => b.addEventListener("click", async () => { await newRecord(); if (view === "record") loadExample(); }));
-  c.querySelectorAll("[data-open]").forEach((tr) => {
-    const open = () => openRecord(tr.dataset.open);
-    tr.addEventListener("click", (e) => { if (e.target.closest("[data-del]")) return; open(); });
-    tr.addEventListener("keydown", (e) => { if (e.key === "Enter") open(); });
+  const live = records.filter((r) => !isArchived(r));
+  const count = { all: live.length, archived: records.length - live.length };
+  ["notes", "draft", "signed"].forEach((s) => { count[s] = live.filter((r) => r.status === s).length; });
+  const nFilters = (listFilter.area ? 1 : 0) + (listFilter.period ? 1 : 0);
+  c.innerHTML = `
+    <div class="list-head lh-big"><div><h1>Advice records</h1><div class="rec-sub">View, manage and finalise your Records of Advice.</div></div>
+      <button class="btn btn-primary" data-act="new">${IC.plus}New record</button></div>
+    <div class="ltools">
+      <div class="ltabs" role="tablist" aria-label="Filter by status">${LIST_TABS.map(([k, label, icon]) => `<button class="ltab" role="tab" data-ltab="${k}" aria-selected="${listTab === k}">${icon}<span>${label}</span><span class="lcount">${count[k]}</span></button>`).join("")}</div>
+      <div class="lsearch-wrap">
+        <label class="lsearch">${IC.search}<input type="text" id="listSearch" placeholder="Search records…" aria-label="Search records" value="${esc(listQuery)}"></label>
+        <button class="icon-btn${nFilters ? " on" : ""}" id="listFilterBtn" aria-haspopup="dialog" aria-expanded="false" aria-label="Filter records${nFilters ? ` (${nFilters} active)` : ""}">${IC.filter}${nFilters ? `<span class="badge">${nFilters}</span>` : ""}</button>
+      </div>
+    </div>
+    <div class="bulkbar" id="bulkbar" hidden></div>
+    <div class="card ltable-card" id="listTable"></div>`;
+  drawListTable();
+  c.querySelector("[data-act=new]").addEventListener("click", newRecord);
+  c.querySelectorAll("[data-ltab]").forEach((b) => b.addEventListener("click", () => { listTab = b.dataset.ltab; picked.clear(); renderList(); }));
+  c.querySelector(".ltabs").addEventListener("keydown", (e) => {
+    const tabs = [...c.querySelectorAll("[data-ltab]")], i = tabs.indexOf(document.activeElement);
+    const next = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+    if (next === undefined || i < 0) return;
+    e.preventDefault(); const t = tabs[(next + tabs.length) % tabs.length]; listTab = t.dataset.ltab; picked.clear(); renderList(); $(`[data-ltab="${listTab}"]`).focus();
   });
-  c.querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    const rec = records.find((r) => r.id === b.dataset.del);
-    const ok = await confirmBox({ title: "Delete this record?", body: `${rec?.client_name ? `The record for ${rec.client_name}` : "This record"}, including its draft, sign-off and history, will be permanently deleted. This can't be undone.`, confirmLabel: "Delete record", danger: true });
-    if (!ok) return;
-    const { error } = await supabase.from("records").delete().eq("id", b.dataset.del);
-    if (error) { toast("Couldn't delete the record. Try again."); return; }
-    records = records.filter((r) => r.id !== b.dataset.del);
-    if (S.id === b.dataset.del) S = blank();
-    $("#recCount").textContent = records.length ? String(records.length) : "";
-    renderList(); toast("Record deleted");
-  }));
+  $("#listSearch").addEventListener("input", (e) => { listQuery = e.target.value; drawListTable(); });
+  $("#listFilterBtn").addEventListener("click", (e) => openListFilter(e.currentTarget));
 }
+
+function drawListTable() {
+  const rows = listRows(), wrap = $("#listTable"); if (!wrap) return;
+  [...picked].forEach((id) => { if (!rows.some((r) => r.id === id)) picked.delete(id); });
+  const allOn = rows.length && rows.every((r) => picked.has(r.id));
+  const th = (key, label, cls = "") => {
+    const on = listSort.key === key;
+    return `<th class="${cls}" aria-sort="${on ? (listSort.dir > 0 ? "ascending" : "descending") : "none"}"><button class="sortbtn${on ? " on" : ""}" data-sort="${key}">${label}${on ? (listSort.dir > 0 ? IC.up : IC.down) : IC.sort}</button></th>`;
+  };
+  const empty = listQuery || listFilter.area || listFilter.period
+    ? `No records match your search or filters. <button class="linkbtn" id="clearAll">Clear search and filters</button>`
+    : listTab === "archived" ? "Nothing archived. Archive a record from its ⋯ menu to keep it out of your main list." : "No records here yet.";
+  wrap.innerHTML = rows.length ? `<table class="rtable ltable"><thead><tr>
+      <th class="ck"><input type="checkbox" class="qck" id="ckAll" aria-label="Select all shown records" ${allOn ? "checked" : ""}></th>
+      ${th("client", "Client")}${th("area", "Advice area", "hide-sm")}${th("date", "Meeting date", "hide-sm")}${th("status", "Status")}
+      <th class="act">Actions</th></tr></thead><tbody>
+    ${rows.map((r) => `<tr data-open="${esc(r.id)}" tabindex="0" class="${picked.has(r.id) ? "picked" : ""}">
+      <td class="ck"><input type="checkbox" class="qck" data-ck="${esc(r.id)}" aria-label="Select record for ${esc(r.client_name || "unnamed client")}" ${picked.has(r.id) ? "checked" : ""}></td>
+      <td><div class="who"><span class="wav" aria-hidden="true">${esc(initials(r.client_name))}</span><div class="who-t"><span class="who-n">${esc(r.client_name || "Unnamed client")}</span>${r.client_id && clients.some((x) => x.id === r.client_id) ? `<button class="who-link" data-client="${esc(r.client_id)}">View client${IC.arrow}</button>` : `<span class="who-none">No client linked</span>`}</div></div></td>
+      <td class="hide-sm"><span class="icell">${IC.brief}${esc(r.advice_area || "—")}</span></td>
+      <td class="hide-sm"><span class="icell">${IC.cal}${esc(fmtDate(r.meeting_date))}</span></td>
+      <td>${statusPill(r.status)}</td>
+      <td class="act"><button class="kebab" data-menu="${esc(r.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for ${esc(r.client_name || "unnamed client")}">${IC.more}</button></td>
+    </tr>`).join("")}</tbody></table>` : `<div class="lempty">${empty}</div>`;
+  drawBulkbar();
+  $("#clearAll")?.addEventListener("click", () => { listQuery = ""; listFilter = { area: "", period: "" }; renderList(); });
+  wrap.querySelectorAll("[data-sort]").forEach((b) => b.addEventListener("click", () => {
+    const k = b.dataset.sort;
+    listSort = listSort.key !== k ? { key: k, dir: 1 } : listSort.dir > 0 ? { key: k, dir: -1 } : { key: "", dir: 1 };
+    drawListTable(); wrap.querySelector(`[data-sort="${k}"]`)?.focus();
+  }));
+  $("#ckAll")?.addEventListener("change", (e) => { rows.forEach((r) => (e.target.checked ? picked.add(r.id) : picked.delete(r.id))); drawListTable(); $("#ckAll")?.focus(); });
+  wrap.querySelectorAll("[data-ck]").forEach((cb) => {
+    cb.addEventListener("click", (e) => e.stopPropagation());
+    cb.addEventListener("change", () => { cb.checked ? picked.add(cb.dataset.ck) : picked.delete(cb.dataset.ck); cb.closest("tr").classList.toggle("picked", cb.checked); drawBulkbar(); const all = $("#ckAll"); if (all) all.checked = rows.every((r) => picked.has(r.id)); });
+  });
+  wrap.querySelectorAll("[data-client]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); go("client", b.dataset.client); }));
+  wrap.querySelectorAll("[data-menu]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); openRowMenu(b); }));
+  wrap.querySelectorAll("tr[data-open]").forEach((tr) => {
+    tr.addEventListener("click", () => openRecord(tr.dataset.open));
+    tr.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === tr) openRecord(tr.dataset.open); });
+  });
+}
+
+function drawBulkbar() {
+  const bar = $("#bulkbar"); if (!bar) return;
+  const ids = [...picked];
+  bar.hidden = !ids.length;
+  if (!ids.length) { bar.innerHTML = ""; return; }
+  const arch = listTab === "archived";
+  bar.innerHTML = `<span><b>${ids.length}</b> selected</span>
+    <button class="btn btn-sm" id="bulkArch">${IC.box}${arch ? "Unarchive" : "Archive"}</button>
+    <button class="btn btn-sm btn-quiet-danger" id="bulkDel">Delete</button>
+    <button class="linkbtn" id="bulkClear">Clear selection</button>`;
+  $("#bulkArch").addEventListener("click", () => setArchived(ids, !arch));
+  $("#bulkDel").addEventListener("click", () => deleteRecords(ids));
+  $("#bulkClear").addEventListener("click", () => { picked.clear(); drawListTable(); });
+}
+
+function openRowMenu(btn) {
+  const r = records.find((x) => x.id === btn.dataset.menu); if (!r) return;
+  const hasClient = r.client_id && clients.some((x) => x.id === r.client_id);
+  const { pop, close } = openPop(btn, "cc-menu", (pop) => {
+    pop.setAttribute("role", "menu");
+    pop.innerHTML = `<button role="menuitem" data-a="open">${IC.file}Open record</button>
+      ${hasClient ? `<button role="menuitem" data-a="client">${IC.arrow}View client</button>` : ""}
+      <button role="menuitem" data-a="arch">${IC.box}${isArchived(r) ? "Unarchive" : "Archive"}</button>
+      <hr><button role="menuitem" data-a="del" class="danger"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Delete</button>`;
+  }, { align: "end" });
+  const items = [...pop.querySelectorAll("[role=menuitem]")];
+  items[0].focus();
+  pop.addEventListener("keydown", (e) => {
+    const i = items.indexOf(document.activeElement);
+    const n = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: items.length - 1 }[e.key];
+    if (n !== undefined) { e.preventDefault(); items[(n + items.length) % items.length].focus(); }
+    if (e.key === "Tab") close(false);
+  });
+  pop.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-a]")?.dataset.a; if (!a) return;
+    close(false);
+    if (a === "open") openRecord(r.id);
+    else if (a === "client") go("client", r.client_id);
+    else if (a === "arch") setArchived([r.id], !isArchived(r));
+    else if (a === "del") deleteRecords([r.id]);
+  });
+}
+
+function openListFilter(btn) {
+  const areas = [...new Set([...AREAS, ...records.map((r) => r.advice_area).filter(Boolean)])];
+  const { pop, close } = openPop(btn, "lfilter", (pop) => {
+    pop.setAttribute("role", "dialog"); pop.setAttribute("aria-label", "Filter records");
+    pop.innerHTML = `<h3>Filter records</h3>
+      <label class="f"><span>Advice area</span><select id="lfArea"><option value="">All advice areas</option>${areas.map((a) => `<option ${listFilter.area === a ? "selected" : ""}>${esc(a)}</option>`).join("")}</select></label>
+      <label class="f"><span>Meeting date</span><select id="lfPeriod">${PERIODS.map(([v, l]) => `<option value="${v}" ${listFilter.period === v ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      <div class="lf-foot"><button class="linkbtn" id="lfReset">Reset</button><button class="btn btn-primary btn-sm" id="lfDone">Done</button></div>`;
+  }, { align: "end" });
+  const apply = () => { listFilter = { area: pop.querySelector("#lfArea").value, period: pop.querySelector("#lfPeriod").value }; };
+  pop.querySelector("#lfArea").addEventListener("change", apply);
+  pop.querySelector("#lfPeriod").addEventListener("change", apply);
+  pop.querySelector("#lfReset").addEventListener("click", () => { listFilter = { area: "", period: "" }; close(false); renderList(); $("#listFilterBtn")?.focus(); });
+  pop.querySelector("#lfDone").addEventListener("click", () => { close(false); renderList(); $("#listFilterBtn")?.focus(); });
+  requestAnimationFrame(() => pop.querySelector(".cc-trigger")?.focus());
+}
+
+async function setArchived(ids, on) {
+  const at = on ? new Date().toISOString() : null;
+  const { error } = await supabase.from("records").update({ archived_at: at }).in("id", ids);
+  if (error) { toast(`Couldn't ${on ? "archive" : "unarchive"}. Try again.`); return; }
+  records.forEach((r) => { if (ids.includes(r.id)) r.archived_at = at; });
+  ids.forEach((id) => picked.delete(id));
+  setRecCount(); renderList();
+  toast(`${ids.length === 1 ? "Record" : `${ids.length} records`} ${on ? "archived" : "moved back to your records"}`);
+}
+async function deleteRecords(ids) {
+  const one = ids.length === 1 ? records.find((r) => r.id === ids[0]) : null;
+  const signed = records.filter((r) => ids.includes(r.id) && r.status === "signed").length;
+  const ok = await confirmBox({
+    title: ids.length === 1 ? "Delete this record?" : `Delete ${ids.length} records?`,
+    body: `${one ? (one.client_name ? `The record for ${one.client_name}` : "This record") : "These records"}, including ${ids.length === 1 ? "its" : "their"} draft, sign-off and history, will be permanently deleted. This can't be undone.${signed ? ` ${signed === 1 && ids.length === 1 ? "It is" : `${signed} ${signed === 1 ? "is" : "are"}`} signed off: FAIS requires you to keep records of advice for at least five years, so consider archiving instead.` : ""}`,
+    confirmLabel: ids.length === 1 ? "Delete record" : `Delete ${ids.length} records`, danger: true,
+  });
+  if (!ok) return;
+  const { error } = await supabase.from("records").delete().in("id", ids);
+  if (error) { toast("Couldn't delete. Try again."); return; }
+  records = records.filter((r) => !ids.includes(r.id));
+  if (ids.includes(S.id)) S = blank();
+  ids.forEach((id) => picked.delete(id));
+  setRecCount(); renderList(); toast(ids.length === 1 ? "Record deleted" : `${ids.length} records deleted`);
+}
+
+/* ---------------- Global search (top bar, ⌘K) ---------------- */
+// Searches clients and records already in memory; results open in a popup under the box.
+function initGlobalSearch() {
+  const input = $("#searchBox"), wrap = input.closest(".search");
+  let res = null, items = [], active = 0;
+  const shut = () => { res?.close(false); res = null; };
+  const draw = () => {
+    const q = input.value.trim().toLowerCase();
+    if (!q) { shut(); return; }
+    const cl = clients.filter((c) => `${c.name} ${c.reference || ""} ${c.email || ""}`.toLowerCase().includes(q)).slice(0, 5);
+    const rc = records.filter((r) => `${r.client_name} ${r.advice_area} ${fmtDate(r.meeting_date)}`.toLowerCase().includes(q)).slice(0, 6);
+    const html = `${cl.length ? `<div class="gs-h">Clients</div>${cl.map((c) => `<button class="gs-i" data-go="client" data-id="${esc(c.id)}"><span class="wav sm" aria-hidden="true">${esc(initials(c.name))}</span><span class="gs-t"><b>${esc(c.name)}</b><small>${esc([c.reference, c.email].filter(Boolean).join(" · ") || "Client")}</small></span></button>`).join("")}` : ""}
+      ${rc.length ? `<div class="gs-h">Records</div>${rc.map((r) => `<button class="gs-i" data-go="record" data-id="${esc(r.id)}">${IC.file}<span class="gs-t"><b>${esc(r.client_name || "Unnamed client")}</b><small>${esc(r.advice_area)} · ${esc(fmtDate(r.meeting_date))}${isArchived(r) ? " · Archived" : ""}</small></span>${statusPill(r.status)}</button>`).join("")}` : ""}
+      ${!cl.length && !rc.length ? `<div class="gs-none">No clients or records match “${esc(input.value.trim())}”.</div>` : ""}`;
+    if (!res) {
+      res = openPop(wrap, "cc-match gsearch", (p) => { p.setAttribute("role", "listbox"); p.setAttribute("aria-label", "Search results"); }, { onClose: () => { res = null; input.setAttribute("aria-expanded", "false"); } });
+      res.pop.addEventListener("pointerdown", (e) => e.preventDefault()); // keep focus in the box
+      res.pop.addEventListener("click", (e) => { const b = e.target.closest(".gs-i"); if (b) pick(b); });
+      input.setAttribute("aria-expanded", "true");
+    }
+    res.pop.innerHTML = html;
+    items = [...res.pop.querySelectorAll(".gs-i")]; active = 0; mark(); res.place();
+  };
+  const mark = () => items.forEach((b, i) => { b.classList.toggle("active", i === active); b.id = `gs-${i}`; if (i === active) { input.setAttribute("aria-activedescendant", b.id); b.scrollIntoView({ block: "nearest" }); } });
+  const pick = (b) => { const { go: to, id } = b.dataset; input.value = ""; shut(); input.blur(); to === "client" ? go("client", id) : openRecord(id); };
+  input.setAttribute("role", "combobox"); input.setAttribute("aria-autocomplete", "list"); input.setAttribute("aria-expanded", "false");
+  input.addEventListener("input", draw);
+  input.addEventListener("focus", () => { if (input.value.trim()) draw(); });
+  input.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== input) shut(); }, 120));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { if (res) shut(); else { input.value = ""; input.blur(); } e.preventDefault(); return; }
+    if (!res || !items.length) return;
+    if (e.key === "ArrowDown") { active = (active + 1) % items.length; mark(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { active = (active - 1 + items.length) % items.length; mark(); e.preventDefault(); }
+    else if (e.key === "Enter") { pick(items[active]); e.preventDefault(); }
+  });
+  const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  $("#searchKbd").textContent = mac ? "⌘ K" : "Ctrl K";
+  document.addEventListener("keydown", (e) => {
+    if ((mac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === "k" && !$("#app").hidden) { e.preventDefault(); input.focus(); input.select(); }
+  });
+}
+
 async function openRecord(id) {
   if (!(await canLeave())) return;
   if (id !== S.id) {
@@ -885,7 +1114,7 @@ $("#acctBtn").addEventListener("click", (e) => { e.stopPropagation(); setAcctMen
 document.addEventListener("click", (e) => { if (!e.target.closest("#acct")) setAcctMenu(false); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#acctMenu").hidden) { setAcctMenu(false); $("#acctBtn").focus(); } });
 $("#navAccount").addEventListener("click", () => { setAcctMenu(false); openSettings(); });
-$("#searchBox").addEventListener("input", async (e) => { query = e.target.value; if (view !== "list") { if (!(await go("list"))) return; } else renderApp(); });
+initGlobalSearch();
 $("#signOut").addEventListener("click", async () => { if (dirty) await save(); await supabase.auth.signOut(); });
 window.addEventListener("beforeunload", (e) => { if (dirty) save(); if (dirty || isRecording() || leaveGuard?.()) e.preventDefault(); });
 

@@ -21,7 +21,9 @@ const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 
 const addMonths = (d, n) => { const t = new Date(d.getFullYear(), d.getMonth() + n, 1); t.setDate(Math.min(d.getDate(), new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate())); return t; };
 
 /* ---------------- Shared popup plumbing ---------------- */
-let open = null; // { pop, trigger, close }
+// Open popups form a stack so a popup can hold controls that open their own (e.g. a dropdown
+// inside the records filter panel). Opening a popup closes any that aren't its ancestors.
+const stack = []; // [{ pop, trigger, close }]
 
 function makePop(cls, owner) {
   const pop = document.createElement("div");
@@ -31,27 +33,36 @@ function makePop(cls, owner) {
   document.body.appendChild(pop);
   return pop;
 }
-function place(pop, trigger) {
+function place(pop, trigger, align = "start") {
   const r = trigger.getBoundingClientRect(), gap = 6, vw = innerWidth, vh = innerHeight;
-  pop.style.minWidth = pop.classList.contains("cc-list") ? `${r.width}px` : "";
+  pop.style.minWidth = pop.classList.contains("cc-list") || pop.classList.contains("cc-match") ? `${r.width}px` : "";
   const w = pop.offsetWidth, h = pop.offsetHeight;
   const below = vh - r.bottom - gap, above = r.top - gap;
   const top = h <= below || below >= above ? r.bottom + gap : Math.max(8, r.top - gap - h);
+  const left = align === "end" ? r.right - w : r.left;
   pop.style.top = `${Math.round(top)}px`;
-  pop.style.left = `${Math.round(Math.max(8, Math.min(r.left, vw - w - 8)))}px`;
+  pop.style.left = `${Math.round(Math.max(8, Math.min(left, vw - w - 8)))}px`;
   pop.style.maxHeight = `${Math.max(160, (top > r.top ? below : above) - 8)}px`;
 }
-function show(pop, trigger, onClose) {
-  closeOpen();
+function show(pop, trigger, onClose, align) {
+  while (stack.length && !stack[stack.length - 1].pop.contains(trigger)) stack[stack.length - 1].close(false);
   pop.hidden = false;
   if (pop.popover) pop.showPopover();
-  place(pop, trigger);
+  place(pop, trigger, align);
   trigger.setAttribute("aria-expanded", "true");
-  const reposition = (e) => { if (!e || !pop.contains(e.target)) place(pop, trigger); };
-  const outside = (e) => { if (!pop.contains(e.target) && !trigger.contains(e.target)) close(false); };
+  const reposition = (e) => { if (!(e?.target instanceof Node) || !pop.contains(e.target)) place(pop, trigger, align); }; // resize targets window
+  const entry = { pop, trigger };
+  const outside = (e) => {
+    const i = stack.indexOf(entry);
+    if (pop.contains(e.target) || trigger.contains(e.target)) return;
+    if (stack.slice(i + 1).some((s) => s.pop.contains(e.target))) return; // inside a child popup
+    close(false);
+  };
   const close = (refocus = true) => {
-    if (open?.pop !== pop) return;
-    open = null;
+    const i = stack.indexOf(entry);
+    if (i < 0) return;
+    while (stack.length > i + 1) stack[stack.length - 1].close(false); // children first
+    stack.splice(i, 1);
     if (pop.popover) { try { pop.hidePopover(); } catch {} }
     pop.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
@@ -60,12 +71,22 @@ function show(pop, trigger, onClose) {
     onClose?.();
     if (refocus && trigger.isConnected) trigger.focus();
   };
+  entry.close = close;
   addEventListener("scroll", reposition, true); addEventListener("resize", reposition);
   document.addEventListener("pointerdown", outside, true);
-  open = { pop, trigger, close };
+  stack.push(entry);
   return close;
 }
-function closeOpen() { open?.close(false); }
+
+// A one-off popup anchored to `trigger` (menus, filter panels, search results). `build(pop)`
+// fills it before it's shown; it's removed from the page when closed. Esc closes it.
+export function openPop(trigger, cls, build, { align = "start", onClose } = {}) {
+  const pop = makePop(`cc-panel ${cls || ""}`, trigger);
+  build(pop);
+  const close = show(pop, trigger, () => { pop.remove(); onClose?.(); }, align);
+  pop.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.stopPropagation(); e.preventDefault(); close(); } });
+  return { pop, close, place: () => place(pop, trigger, align) };
+}
 
 // Name the custom trigger with the field's label text (labels wrap their control; a bare text
 // node before the control is wrapped in a span so it can be referenced).
@@ -278,7 +299,7 @@ function enhance(root) {
 }
 // Close an open popup whose control was re-rendered away, and drop orphaned popups.
 function sweep() {
-  if (open && !open.trigger.isConnected) open.close(false);
+  [...stack].reverse().forEach((s) => { if (!s.trigger.isConnected) s.close(false); });
   document.querySelectorAll("body > .cc-pop").forEach((p) => { if (p._owner && !p._owner.isConnected) p.remove(); });
 }
 

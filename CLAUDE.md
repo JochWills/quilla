@@ -48,7 +48,8 @@ Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.c
 - Sign off → record becomes read-only (banner shown, no editing on Document or Source notes) and "Sealed versions" lists version 1.
 - Reopen → edit → sign again → version 2 appears; version 1 still downloads unchanged.
 - Export PDF, Word (.docx) and .md for a draft (watermarked DRAFT) and for a sealed version (integrity block with fingerprint).
-- Records list shows the record; reload the page and reopen it.
+- Records list shows the record; reload the page and reopen it. Status tabs, search, filter and column sorting narrow the list; ⋯ → Archive moves it to the Archived tab (and Unarchive brings it back); select two rows → bulk Archive/Delete works.
+- ⌘K (Ctrl K) focuses the top search; typing a client or record name lists both, Enter opens the first.
 - Clients: add a client → New record from their page prefills name/reference; the record appears on the client page.
 - Meetings: confirm consent → record 30 seconds (or upload audio) → transcript appears, audio is gone from the bucket → name speakers → Start Record of Advice → the draft uses the transcript. Also import a Teams .vtt file.
 - Templates: add guidance and standard wording to Fees → redraft → the standard wording is appended and marked.
