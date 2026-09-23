@@ -12,6 +12,7 @@ import { renderClients, renderClient } from "./clients.js";
 import { renderMeetings, renderMeeting, isRecording, flushMeeting } from "./meetings.js";
 import { renderTemplates } from "./templates.js";
 import { renderCompliance } from "./compliance.js";
+import { initControls } from "./controls.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // The landing site's "Sign out" link (no session of its own) points here with ?signout=1.
@@ -259,6 +260,7 @@ function crumbs(items) {
     : `<li><span class="crumb-cur" aria-current="page">${esc(label)}</span></li>`).join("")}</ol></nav>`;
 }
 $("#content").addEventListener("click", (e) => { const b = e.target.closest(".crumb[data-go]"); if (b) go(b.dataset.go); });
+initControls(); // custom dropdowns and date pickers for every <select> / date input
 
 const ctx = {
   supabase, $, esc, crumbs, toast, confirmBox, fmtDate, fmtTime, today, SECTIONS, STATUS_LABEL,

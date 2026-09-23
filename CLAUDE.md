@@ -19,6 +19,7 @@ Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.c
 ## Code conventions
 - **No build step** right now: plain HTML, CSS and ES modules. `app/js/app.js` imports `@supabase/supabase-js` from jsDelivr. If you introduce a bundler (e.g. Vite), update `render.yaml` (`buildCommand`, `staticPublishPath`) and `docs/DEPLOYMENT.md` in the same change.
 - Vanilla JS, render-by-template-string, `esc()` on **every** interpolated user value to prevent XSS.
+- Use plain `<select>` and `<input type="date">` in markup. `app/js/controls.js` swaps them for the custom dropdown and date picker automatically (the native element stays hidden and holds the value, so read `.value` and listen for `change` as normal). Add `data-native` to opt out.
 - The 13 ROA sections are defined twice: `app/js/app.js` (`SECTIONS`) and `supabase/functions/ai/prompts.ts` (`SECTIONS`). Keep them identical. A future refactor should share one source.
 - Record state shape lives in `blank()` in `app/js/app.js`. If you change it, keep old records loadable (records are stored as JSON in `records.data`).
 - Spelling in UI copy: "advisor" (matches the brand design). Use South African conventions: rand as "R", dates like "21 Sep 2026".
