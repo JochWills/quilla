@@ -167,7 +167,7 @@ async function loadProfile() {
 async function saveProfile(next) {
   const { error } = await supabase.from("profiles").update(next).eq("id", session.user.id);
   if (error) { toast("Couldn't save your profile. Try again."); return false; }
-  profile = { ...profile, ...next };
+  profile = { ...profile, ...next }; renderAcctBtn();
   return true;
 }
 function rowOf(r) {
@@ -196,7 +196,7 @@ async function save() {
 /* ---------------- App render ---------------- */
 function renderApp() {
   $("#navRecords").setAttribute("aria-current", view === "list" ? "page" : "false");
-  $("#navAccount").setAttribute("aria-current", view === "account" ? "page" : "false");
+  $("#acctBtn").classList.toggle("current", view === "account");
   if (view === "list") renderList(); else if (view === "account") renderAccount(); else renderRecord();
 }
 
@@ -732,7 +732,20 @@ function closeSide() { $("#side").classList.remove("open"); $("#menuBtn").setAtt
 $("#menuBtn").addEventListener("click", () => { const o = $("#side").classList.toggle("open"); $("#menuBtn").setAttribute("aria-expanded", String(o)); });
 $("#newRec").addEventListener("click", newRecord);
 $("#navRecords").addEventListener("click", async () => { if (busy) return; if (dirty) await save(); view = "list"; renderApp(); closeSide(); });
-$("#navAccount").addEventListener("click", async () => { if (busy) return; if (dirty) await save(); view = "account"; renderApp(); closeSide(); });
+// Account menu (bottom of the sidebar): opens upwards; Esc or clicking elsewhere closes it.
+function setAcctMenu(open) { $("#acctMenu").hidden = !open; $("#acctBtn").setAttribute("aria-expanded", String(open)); }
+function renderAcctBtn() {
+  const email = session?.user.email || "", name = (profile.full_name || "").trim();
+  const initials = (name ? name.split(/\s+/).slice(0, 2).map((w) => w[0]).join("") : email[0] || "?").toUpperCase();
+  $("#acctAv").textContent = initials;
+  $("#acctName").textContent = name || email;
+  $("#acctSub").textContent = name ? (profile.practice_name || email) : "Add your name in Account settings";
+  $("#acctEmail").textContent = email;
+}
+$("#acctBtn").addEventListener("click", (e) => { e.stopPropagation(); setAcctMenu($("#acctMenu").hidden); });
+document.addEventListener("click", (e) => { if (!e.target.closest("#acct")) setAcctMenu(false); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#acctMenu").hidden) { setAcctMenu(false); $("#acctBtn").focus(); } });
+$("#navAccount").addEventListener("click", async () => { setAcctMenu(false); if (busy) return; if (dirty) await save(); view = "account"; renderApp(); closeSide(); });
 $("#searchBox").addEventListener("input", async (e) => { query = e.target.value; if (view !== "list") { if (busy) return; if (dirty) await save(); view = "list"; } renderApp(); });
 $("#signOut").addEventListener("click", async () => { if (dirty) await save(); await supabase.auth.signOut(); });
 window.addEventListener("beforeunload", (e) => { if (dirty) { save(); e.preventDefault(); } });
@@ -862,8 +875,8 @@ async function startApp() {
   setSignedInCookie();
   $("#boot").hidden = true; $("#auth").hidden = true; $("#app").hidden = false;
   document.title = "Quilla · Advice records";
-  $("#whoami").textContent = session.user.email || "";
-  await loadProfile();
+  renderAcctBtn();
+  await loadProfile(); renderAcctBtn();
   await loadRecords();
   const params = new URLSearchParams(location.search);
   if (params.get("view") === "account") {

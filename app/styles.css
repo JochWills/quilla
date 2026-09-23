@@ -56,7 +56,6 @@ a{color:inherit}
 .nav-item:disabled{cursor:default;opacity:.6}
 .nav-item .soon{margin-left:auto}
 .nav-item .count{margin-left:auto;font-size:12px;color:var(--faint)}
-.side .foot{margin-top:auto;font-size:12px;color:var(--faint);padding:10px;line-height:1.5}
 .main{min-width:0;display:flex;flex-direction:column}
 .topbar{display:flex;align-items:center;gap:14px;padding:14px 28px;border-bottom:1px solid var(--rule);background:var(--surface);position:sticky;top:0;z-index:20}
 .search{flex:1;max-width:460px;position:relative}
@@ -237,7 +236,6 @@ h3.sub{font-size:15px;font-weight:600;margin:0 0 10px}
 .auth-ok{background:var(--green-bg);color:var(--green);border-radius:8px;padding:12px 14px;margin-top:14px;font-size:14px}
 .auth-links{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:16px;font-size:13.5px}
 .auth-legal{max-width:420px;text-align:center}
-.side .foot .who{color:var(--muted);font-size:12.5px;word-break:break-all;margin-bottom:4px}
 .boot{position:fixed;inset:0;display:grid;place-items:center;color:var(--faint);font-size:14px}
 
 /* Wordmark (same as landing) */
@@ -275,3 +273,18 @@ code.fp{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-si
 .versions .note{margin:2px 0 4px;font-size:12.5px}
 .v-dl{display:flex;gap:6px;flex:none}
 @media (max-width:640px){.locked-bar{flex-wrap:wrap}.locked-bar .btn{width:100%}}
+
+/* Sidebar account button + upward menu */
+.side .acct{margin-top:auto;position:relative;padding-top:8px;border-top:1px solid var(--rule)}
+.acct-btn{display:flex;align-items:center;gap:10px;width:100%;padding:8px;border-radius:9px;border:none;background:none;cursor:pointer;text-align:left;color:var(--ink)}
+.acct-btn:hover,.acct-btn[aria-expanded="true"],.acct-btn.current{background:var(--brand-tint)}
+.acct-av{width:32px;height:32px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:12.5px;font-weight:600;flex:none;letter-spacing:.02em}
+.acct-txt{display:flex;flex-direction:column;min-width:0;flex:1}
+.acct-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acct-sub{font-size:12px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acct-chev{width:16px;height:16px;flex:none;fill:none;stroke:var(--faint);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.acct-menu{position:absolute;left:0;right:0;bottom:calc(100% + 6px);background:var(--surface);border:1px solid var(--rule);border-radius:10px;box-shadow:var(--shadow-lg);padding:6px;z-index:60}
+.acct-email{font-size:12.5px;color:var(--faint);padding:8px 10px 8px;border-bottom:1px solid var(--rule);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct-item{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:none;background:none;border-radius:7px;font-size:14px;color:var(--ink);cursor:pointer;text-align:left}
+.acct-item:hover,.acct-item:focus-visible{background:var(--brand-tint)}
+.acct-item svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none;color:var(--muted)}
