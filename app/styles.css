@@ -294,8 +294,15 @@ code.fp{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-si
 .acct-item svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none;color:var(--muted)}
 
 /* Page headers with a back link and several actions */
-.linkbtn.back{font-size:13px;text-decoration:none;color:var(--muted);margin-bottom:6px;display:inline-block}
-.linkbtn.back:hover{color:var(--ink)}
+.crumbs{margin:-4px 0 14px}
+.crumbs ol{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;align-items:center;gap:2px;font-size:13.5px;min-width:0}
+.crumbs li{display:flex;align-items:center;min-width:0}
+.crumbs li+li::before{content:"/";color:var(--faint);margin:0 6px}
+.crumb{display:inline-flex;align-items:center;gap:7px;background:none;border:none;padding:4px 8px;margin-left:-8px;border-radius:6px;color:var(--muted);font:inherit;font-weight:500;cursor:pointer}
+.crumbs li+li .crumb{margin-left:0}
+.crumb:hover{background:#F2F5F5;color:var(--ink)}
+.crumb svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linejoin:round}
+.crumb-cur{color:var(--ink);font-weight:500;padding:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40ch}
 .list-head .rec-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
 .list-head .rec-actions .btn{margin-left:0}
 .btn-quiet-danger{color:var(--red);border-color:transparent;background:none}

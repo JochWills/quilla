@@ -79,7 +79,8 @@ export async function renderClient(ctx, id) {
   if (!c) { ctx.toast("Couldn't find that client."); ctx.go("clients"); return; }
   const recs = ctx.records().filter((r) => r.client_id === id);
   $("#content").innerHTML = `
-    <div class="list-head"><div><button class="linkbtn back" id="backClients">← Clients</button><h1>${esc(c.name)}</h1><div class="rec-sub">${esc([c.reference, c.email, c.phone].filter(Boolean).join(" · ") || "No contact details yet")}</div></div>
+    ${ctx.crumbs([["Clients", "clients"], [c.name]])}
+    <div class="list-head"><div><h1>${esc(c.name)}</h1><div class="rec-sub">${esc([c.reference, c.email, c.phone].filter(Boolean).join(" · ") || "No contact details yet")}</div></div>
       <div class="rec-actions"><button class="btn btn-sm" id="cNewMeeting">New meeting</button><button class="btn btn-primary btn-sm" id="cNewRecord">New record</button></div></div>
     <div class="sign-grid">
       <div>
@@ -99,7 +100,6 @@ export async function renderClient(ctx, id) {
         <div id="cl_msg" aria-live="polite"></div>
       </aside>
     </div>`;
-  $("#backClients").addEventListener("click", () => ctx.go("clients"));
   $("#cNewRecord").addEventListener("click", () => ctx.startRecord({ client: c }));
   $("#cNewMeeting").addEventListener("click", () => ctx.go("meeting", { clientId: c.id }));
   $("#content").querySelectorAll("[data-rec]").forEach((b) => b.addEventListener("click", () => ctx.openRecord(b.dataset.rec)));

@@ -250,8 +250,18 @@ async function startRecord({ client = null, meeting = null, notes = "" } = {}) {
   }
 }
 // Shared context handed to the Clients / Meetings / Templates / Compliance screens.
+// Folder-style breadcrumb: crumbs([["Clients", "clients"], ["Courtney Wickens"]]). Every item but
+// the last is a link to that view; the last is the current page.
+const FOLDER = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`;
+function crumbs(items) {
+  return `<nav class="crumbs" aria-label="Breadcrumb"><ol>${items.map(([label, view], i) => i < items.length - 1
+    ? `<li><button type="button" class="crumb" data-go="${esc(view)}">${i === 0 ? FOLDER : ""}${esc(label)}</button></li>`
+    : `<li><span class="crumb-cur" aria-current="page">${esc(label)}</span></li>`).join("")}</ol></nav>`;
+}
+$("#content").addEventListener("click", (e) => { const b = e.target.closest(".crumb[data-go]"); if (b) go(b.dataset.go); });
+
 const ctx = {
-  supabase, $, esc, toast, confirmBox, fmtDate, fmtTime, today, SECTIONS, STATUS_LABEL,
+  supabase, $, esc, crumbs, toast, confirmBox, fmtDate, fmtTime, today, SECTIONS, STATUS_LABEL,
   fnUrl: `${SUPABASE_URL}/functions/v1`, anonKey: SUPABASE_ANON_KEY,
   get session() { return session; }, get profile() { return profile; },
   records: () => records, clients: () => clients, loadClients, saveProfile,
@@ -386,6 +396,7 @@ function gapCounts() {
 function renderRecord() {
   const m = S.meta, st = statusOf(S), has = !!S.sections, c = gapCounts();
   $("#content").innerHTML = `
+    ${crumbs([["Advice records", "list"], [m.client || "New record"]])}
     <div class="rec-head">
       <div>
         <h1 class="rec-title">${esc(m.client || "New record")} <span class="status ${st}">${STATUS_LABEL[st]}</span></h1>
@@ -422,6 +433,7 @@ function refreshTabBadge() {
 function renderHeaderOnly() {
   const t = $(".rec-title"), sub = $(".rec-sub"); if (!t || !sub) return;
   const st = statusOf(S), m = S.meta;
+  const cur = $(".crumb-cur"); if (cur) cur.textContent = m.client || "New record";
   t.innerHTML = `${esc(m.client || "New record")} <span class="status ${st}">${STATUS_LABEL[st]}</span>`;
   sub.textContent = `${m.area} · ${fmtDate(m.date)}${m.ref ? ` · ${m.ref}` : ""}`;
 }

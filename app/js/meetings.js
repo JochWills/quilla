@@ -63,7 +63,8 @@ function draw(ctx) {
   const clients = ctx.clients();
   const busy = M.transcription_status === "processing";
   $("#content").innerHTML = `
-    <div class="list-head"><div><button class="linkbtn back" id="backMeetings">← Meetings</button><h1>${esc(M.title || "New meeting")}</h1><div class="rec-sub">${esc([clients.find((c) => c.id === M.client_id)?.name, ctx.fmtDate(M.meeting_date), KINDS[M.kind]].filter(Boolean).join(" · "))}</div></div>
+    ${ctx.crumbs([["Meetings", "meetings"], [M.title || "New meeting"]])}
+    <div class="list-head"><div><h1>${esc(M.title || "New meeting")}</h1><div class="rec-sub">${esc([clients.find((c) => c.id === M.client_id)?.name, ctx.fmtDate(M.meeting_date), KINDS[M.kind]].filter(Boolean).join(" · "))}</div></div>
       <div class="rec-actions" id="mActions"></div></div>
     <div class="meet-grid">
       <section class="card" style="padding:22px">
@@ -90,7 +91,6 @@ function draw(ctx) {
       </section>
     </div>`;
 
-  $("#backMeetings").addEventListener("click", () => ctx.go("meetings"));
   const bind = (id, key, ev = "input") => $("#" + id).addEventListener(ev, (e) => { M[key] = e.target.value; queueSave(ctx); if (key === "title" || key === "client_id") drawHead(ctx); });
   bind("mt_title", "title"); bind("mt_date", "meeting_date", "change"); bind("mt_att", "attendees"); bind("mt_notes", "notes");
   $("#mt_kind").addEventListener("change", (e) => { M.kind = e.target.value; queueSave(ctx); drawHead(ctx); });
