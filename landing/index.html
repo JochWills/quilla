@@ -10,7 +10,7 @@
   var TOKEN="OWqa6KRoOod9", COOKIE="quilla_preview";
   var params=new URLSearchParams(location.search), key=params.get("preview");
   function getCookie(n){return document.cookie.split("; ").reduce(function(a,c){var i=c.indexOf("=");return i>-1&&c.slice(0,i)===n?decodeURIComponent(c.slice(i+1)):a},null)}
-  function grant(){document.cookie=COOKIE+"=1; path=/; max-age="+60*60*24*180+"; domain=.quilla.co.za; samesite=lax"+(location.protocol==="https:"?"; secure":"")}
+  function grant(){document.cookie=COOKIE+"=1; path=/; max-age="+60*60*24*180+(location.hostname.endsWith("quilla.co.za")?"; domain=.quilla.co.za":"")+"; samesite=lax"+(location.protocol==="https:"?"; secure":"")}
   if(key===TOKEN){grant()}
   else if(getCookie(COOKIE)!=="1" && location.pathname!=="/coming-soon"){location.replace("/coming-soon")}
   if(key){params.delete("preview");var q=params.toString();history.replaceState(null,"",location.pathname+(q?"?"+q:"")+location.hash)}
@@ -29,10 +29,10 @@
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Caveat:wght@500&family=Newsreader:opsz,wght@6..72,400..600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,300&family=Caveat:wght@500&family=Newsreader:opsz,wght@6..72,400..600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/assets/site.css">
 </head>
-<body>
+<body class="home">
 <div id="site">
 <header class="nav">
   <div class="in">
@@ -51,71 +51,63 @@
 </header>
 
 <main>
-<div class="wrap">
-  <section class="hero" aria-labelledby="heroT">
-    <div>
+<section class="scene" aria-labelledby="heroT">
+  <div class="scene-in hero">
+    <div class="hero-copy">
       <div class="eyebrow">Built for financial advisors</div>
-      <h1 class="h-display" id="heroT">From conversation to compliant advice.</h1>
+      <h1 class="h-display" id="heroT">From conversation<br>to compliant advice<span class="dot">.</span></h1>
       <p class="lede">Quilla uses AI to turn your meeting transcripts or notes into structured, compliant Records of Advice, so you can spend less time writing and more time with clients.</p>
       <div class="hero-cta">
-        <a class="btn btn-primary" href="https://app.quilla.co.za/">Get started <svg class="arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
-        <a class="btn" href="https://app.quilla.co.za/?example=1"><span class="play" aria-hidden="true"><svg viewBox="0 0 10 10"><path d="M1 0l9 5-9 5z"/></svg></span>Try an example meeting</a>
+        <a class="btn btn-primary btn-lg" href="https://app.quilla.co.za/">Get started <svg class="arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
+        <a class="btn btn-ghost btn-lg" href="https://app.quilla.co.za/?example=1"><span class="play" aria-hidden="true"><svg viewBox="0 0 10 10"><path d="M1 0l9 5-9 5z"/></svg></span>Try an example meeting</a>
       </div>
       <div class="badges">
         <span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Secure &amp; private</span>
         <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>Built for compliance</span>
-        <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Made for SA advisors</span>
+        <span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2 .8 3 2.8 3 6"/></svg>Made for SA advisors</span>
       </div>
     </div>
-    <div class="laptop" aria-label="The Quilla app showing a Record of Advice being drafted" role="img">
-      <div class="lid" aria-hidden="true">
-        <div class="screen">
-          <div class="s-side">
-            <div class="s-logo">Quilla</div>
-            <div class="s-item"><i></i>Dashboard</div>
-            <div class="s-item on"><i></i>Advice records</div>
-            <div class="s-item"><i></i>Clients</div>
-            <div class="s-item"><i></i>Meetings</div>
-            <div class="s-item"><i></i>Templates</div>
-            <div class="s-item"><i></i>Compliance</div>
+
+    <div class="stage">
+      <div class="glass" role="img" aria-label="The Quilla app showing a meeting transcript beside a draft Record of Advice">
+        <div class="g-panel" aria-hidden="true">
+          <div class="g-side">
+            <div class="g-logo">Quilla</div>
+            <div class="g-item on"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/></svg>Meetings</div>
+            <div class="g-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg>Drafts</div>
+            <div class="g-item"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2 .8 3 2.8 3 6"/></svg>Clients</div>
+            <div class="g-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5c3-1 6-1 9 1v14c-3-2-6-2-9-1z"/><path d="M21 5c-3-1-6-1-9 1v14c3-2 6-2 9-1z"/></svg>Library</div>
+            <div class="g-item"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></svg>Settings</div>
           </div>
-          <div class="s-main">
-            <div class="s-top"><div class="s-search">Search clients, records…</div><div class="s-av">JD</div></div>
-            <div class="s-name">Sarah Williams <span class="s-pill">Draft</span></div>
-            <div class="s-sub">Retirement planning advice · 21 Sep 2026</div>
-            <div class="s-tabs"><span class="on">Document</span><span>Source notes</span><span>Sign-off</span><span>Activity</span></div>
-            <div class="s-card">
-              <div class="s-card-h"><span class="s-num">1</span>Client details and circumstances<span class="s-ai">✦ Improve with AI</span></div>
-              <div class="s-body">Sarah Williams is 45 years old, married with two children. She is employed as a marketing director with an annual income of approximately R1.8 million. Her spouse is self-employed…</div>
-            </div>
-            <div class="s-card">
-              <div class="s-card-h"><span class="s-num">2</span>Needs and objectives<span class="s-ai">✦ Improve with AI</span></div>
-              <div class="s-body"><ul><li>Retire by age 60 with an income of at least 70% of current income.</li><li>Maintain a similar lifestyle in retirement.</li><li>Fund her children's university education from 2031.</li></ul></div>
+          <div class="g-main">
+            <div class="g-title">Meeting Transcript</div>
+            <div class="g-sub">12 Sep 2026 &nbsp;·&nbsp; 10:00 – 11:00</div>
+            <div class="g-tabs"><span class="on">Transcript</span><span>Key Points</span><span>Advice Areas</span><span>Draft RoA</span></div>
+            <div class="g-body">
+              <div class="g-msgs">
+                <div class="g-msg"><span class="g-av">A</span><div><b>Advisor</b><time>10:00</time><p>Let's start with your current financial position…</p></div></div>
+                <div class="g-msg"><span class="g-av">C</span><div><b>Client</b><time>10:02</time><p>Sure, so at the moment I'm looking to…</p></div></div>
+                <div class="g-msg"><span class="g-av">A</span><div><b>Advisor</b><time>10:05</time><p>And in terms of your retirement goals…</p></div></div>
+              </div>
+              <div class="g-roa">
+                <div class="g-roa-t">Record of Advice</div>
+                <i></i><i></i><i style="width:78%"></i><i></i><i style="width:64%"></i><i></i><i></i><i style="width:82%"></i><i></i><i style="width:58%"></i>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div class="base" aria-hidden="true"></div>
     </div>
-  </section>
+  </div>
 
-  <section class="strip" aria-labelledby="stripT">
-    <div class="eyebrow" id="stripT">Built around South African requirements</div>
-    <div class="strip-row">
-      <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg>FAIS Record of Advice structure</div>
-      <div><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>POPIA-aware by design</div>
-      <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h6M14 12h6M10 12a2 2 0 1 0 4 0 2 2 0 1 0-4 0"/><path d="M4 6h16M4 18h16"/></svg>Every line traced to source</div>
-      <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Made in South Africa</div>
-    </div>
-  </section>
-</div>
+</section>
 
 <div class="band-white" id="product">
   <div class="wrap features">
-    <div><div class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><h3>Save hours<br>on admin</h3><p>Turn meeting notes or transcripts into a structured draft in minutes.</p></div>
-    <div><div class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg></div><h3>Compliant by design</h3><p>Aligned to FAIS record-keeping requirements, with source referencing and a full audit trail.</p></div>
-    <div><div class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14c2 .8 3 2.8 3 6"/></svg></div><h3>Stay focused<br>on clients</h3><p>Less time writing, more time building relationships.</p></div>
+    <div><div class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg></div><h3>FAIS Record of Advice structure</h3><p>Aligned to local requirements.</p></div>
+    <div><div class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div><h3>POPIA-aware by design</h3><p>Your data stays protected.</p></div>
     <div><div class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div><h3>Your data, your control</h3><p>Records are private to your account, and you sign off every one.</p></div>
+    <div><div class="ficon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></div><h3>Made in South Africa</h3><p>Built for local advisors.</p></div>
   </div>
 </div>
 

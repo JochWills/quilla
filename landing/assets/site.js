@@ -46,3 +46,11 @@
     });
   });
 })();
+
+// Home hero: transparent nav over the scene, solid once scrolled.
+(function(){
+  if (!document.body.classList.contains("home")) return;
+  var nav = document.querySelector(".nav");
+  var on = function(){ nav.classList.toggle("scrolled", window.scrollY > 24); };
+  on(); window.addEventListener("scroll", on, { passive: true });
+})();

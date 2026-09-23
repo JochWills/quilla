@@ -10,7 +10,7 @@
   var TOKEN="OWqa6KRoOod9", COOKIE="quilla_preview";
   var params=new URLSearchParams(location.search), key=params.get("preview");
   function getCookie(n){return document.cookie.split("; ").reduce(function(a,c){var i=c.indexOf("=");return i>-1&&c.slice(0,i)===n?decodeURIComponent(c.slice(i+1)):a},null)}
-  function grant(){document.cookie=COOKIE+"=1; path=/; max-age="+60*60*24*180+"; domain=.quilla.co.za; samesite=lax"+(location.protocol==="https:"?"; secure":"")}
+  function grant(){document.cookie=COOKIE+"=1; path=/; max-age="+60*60*24*180+(location.hostname.endsWith("quilla.co.za")?"; domain=.quilla.co.za":"")+"; samesite=lax"+(location.protocol==="https:"?"; secure":"")}
   if(key===TOKEN){grant()}
   else if(getCookie(COOKIE)!=="1"){location.replace("https://quilla.co.za/coming-soon")}
   if(key){params.delete("preview");var q=params.toString();history.replaceState(null,"",location.pathname+(q?"?"+q:"")+location.hash)}
