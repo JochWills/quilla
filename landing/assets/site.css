@@ -120,11 +120,14 @@ a{color:inherit}
 
 
 .band-white{background:var(--surface)}
-.features{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:40px;padding:64px 0 72px}
-.ficon{width:54px;height:54px;border-radius:50%;background:var(--brand-tint);display:grid;place-items:center;margin-bottom:20px}
-.ficon svg{width:24px;height:24px;stroke:var(--ink);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
-.features h3{font-size:17px;font-weight:500;margin:0 0 10px;line-height:1.3}
-.features p{margin:0;color:var(--muted);font-size:14px;max-width:26ch}
+.features{display:grid;grid-template-columns:minmax(0,1.2fr) repeat(3,minmax(0,1fr));gap:0;padding-top:56px;padding-bottom:72px}
+.features>div{padding:12px 28px 18px}
+.features>div:first-child{padding-left:0}
+.features>div+div{border-left:1px solid var(--rule)}
+.ficon{width:66px;height:66px;border-radius:50%;background:#EEF1F1;display:grid;place-items:center;margin-bottom:28px}
+.ficon svg{width:32px;height:32px;stroke:var(--ink);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.features h3{font-family:Inter,system-ui,sans-serif;font-size:17.5px;font-weight:500;letter-spacing:-.005em;margin:0 0 12px;line-height:1.3;color:var(--ink)}
+.features p{margin:0;color:var(--muted);font-size:15.5px;line-height:1.6;max-width:30ch}
 
 /* AI insight */
 .insight{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:56px;align-items:center;padding:88px 0}
@@ -226,10 +229,11 @@ a{color:inherit}
 @media (max-width:1080px){
   .doc-grid,.sign-grid,.notes-grid{grid-template-columns:minmax(0,1fr)}
   .margin{position:static;max-height:none}
+  .features{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:36px}
+  .features>div:nth-child(odd){padding-left:0;border-left:0}
 }
 @media (max-width:960px){
   .hero,.insight,.practical{grid-template-columns:minmax(0,1fr)}
-  .features{grid-template-columns:repeat(2,minmax(0,1fr))}
   .hero{padding-bottom:120px}
   .stage{max-width:640px;padding-top:70px;margin-left:0}
   .glass{transform:none;width:100%}
@@ -247,6 +251,7 @@ a{color:inherit}
 @media (max-width:640px){
   .wrap{padding:0 20px}
   .features{grid-template-columns:minmax(0,1fr);gap:32px;padding:48px 20px 56px}
+  .features>div,.features>div+div{padding:0;border-left:0}
   .steps3{grid-template-columns:minmax(0,1fr)}
   .steps3 .sep{display:none}
   .tbody{grid-template-columns:minmax(0,1fr)}
