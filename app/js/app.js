@@ -250,7 +250,8 @@ async function followRoute() {
   const r = parseHash(location.hash);
   routeMode = "replace";
   try {
-    if (r.view === "record") { if (r.param !== S.id || view !== "record") await openRecord(r.param); }
+    if (r.view === "record" && r.param === "new") await newRecord(); // e.g. "New record" on the landing page
+    else if (r.view === "record") { if (r.param !== S.id || view !== "record") await openRecord(r.param); }
     else if (r.view !== view || JSON.stringify(r.param ?? null) !== JSON.stringify(viewParam ?? null)) await go(r.view, r.param ?? null);
   } finally {
     routeMode = "replace"; syncRoute(); // if leaving was cancelled or failed, point the address back at this screen

@@ -86,6 +86,7 @@ a{color:inherit}
 .btn-lg .play svg{width:9px;height:9px}
 .play{width:22px;height:22px;border-radius:50%;background:var(--brand);display:grid;place-items:center;flex:none}
 .play svg{width:9px;height:9px;fill:var(--brand-ink);margin-left:2px}
+.play.plus svg,.btn-lg .play.plus svg{width:12px;height:12px;fill:none;stroke:var(--brand-ink);stroke-width:2;stroke-linecap:round;margin:0}
 .badges{display:flex;gap:26px;flex-wrap:nowrap;margin-top:26px;font-size:14px;color:#5E6B69;white-space:nowrap}
 .badges span{display:inline-flex;align-items:center;gap:8px}
 .badges svg{width:19px;height:19px;stroke:#3E4E4C;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}

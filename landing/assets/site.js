@@ -1,4 +1,5 @@
-// Swap "Log in / Get started" for a dashboard link + account dropdown when signed in.
+// Signed in: swap "Log in / Get started" for a dashboard link + account dropdown, and the
+// page's call-to-action buttons for "Go to your records" / "New record".
 // The `quilla_signed_in` cookie holds just the advisor's email (no token), set/cleared
 // by app.js on the app.quilla.co.za side and shared here via the .quilla.co.za cookie
 // domain — a UX nicety, not a security check. "Account settings" and "Sign out" don't
@@ -24,6 +25,15 @@
           '<a href="https://app.quilla.co.za/?signout=1">Sign out</a>' +
         '</div>' +
       '</details>';
+  });
+  // Hero and bottom call-to-action: "Get started / Try an example meeting" become
+  // "Go to your records / New record". Each button keeps its own style classes.
+  var ARROW = '<svg class="arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>';
+  var PLUS = '<span class="play plus" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg></span>';
+  document.querySelectorAll(".hero-cta").forEach(function(el){
+    var a = el.querySelectorAll("a");
+    if (a[0]) { a[0].href = "https://app.quilla.co.za/"; a[0].innerHTML = "Go to your records " + ARROW; }
+    if (a[1]) { a[1].href = "https://app.quilla.co.za/#/records/new"; a[1].innerHTML = PLUS + "New record"; }
   });
   document.addEventListener("click", function(e){
     document.querySelectorAll(".acct[open]").forEach(function(d){ if (!d.contains(e.target)) d.removeAttribute("open"); });
