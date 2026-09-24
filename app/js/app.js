@@ -1218,23 +1218,43 @@ function showAuth() {
   document.title = "Sign in · Quilla";
   renderAuth();
 }
-function setAuthMode(mode) { authMode = mode; renderAuth(); }
+function setAuthMode(mode) { authMode = mode; renderAuth(); requestAnimationFrame(() => $("#authCard input")?.focus()); }
+// Show/hide buttons on the auth screen's password fields (replaces a "confirm password" field).
+function addPasswordToggles(root) {
+  root.querySelectorAll('input[type="password"]').forEach((inp) => {
+    const wrap = document.createElement("div"); wrap.className = "pw-wrap";
+    inp.replaceWith(wrap); wrap.appendChild(inp);
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pw-toggle"; b.textContent = "Show";
+    b.setAttribute("aria-label", "Show password"); b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => {
+      const show = inp.type === "password"; inp.type = show ? "text" : "password";
+      b.textContent = show ? "Hide" : "Show"; b.setAttribute("aria-pressed", String(show)); b.setAttribute("aria-label", show ? "Hide password" : "Show password");
+      inp.focus();
+    });
+    wrap.appendChild(b);
+  });
+}
 function renderAuth() {
+  renderAuthForm(); addPasswordToggles($("#authCard"));
+  const TITLES = { signup: "Create your account", forgot: "Reset password", reset: "Set password" };
+  document.title = `${TITLES[authMode] || "Sign in"} · Quilla`;
+}
+function renderAuthForm() {
   const card = $("#authCard");
 
   if (authMode === "reset") {
     card.innerHTML = `
       <h1>Set a new password</h1>
-      <p class="note" style="font-size:14.5px">Choose a new password for your account.</p>
+      <p class="auth-sub">Choose a new password for your account.</p>
       <form id="authForm" novalidate>
-        <label class="f" for="a_pw1">New password<input type="password" id="a_pw1" autocomplete="new-password" required minlength="8"></label>
-        <label class="f" for="a_pw2" style="margin-top:12px">Confirm new password<input type="password" id="a_pw2" autocomplete="new-password" required minlength="8"></label>
-        <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Set password</button>
+        <label class="f" for="a_pw1">New password<input type="password" id="a_pw1" autocomplete="new-password" required minlength="8"><span class="hint">At least 8 characters.</span></label>
+        <button class="btn btn-primary auth-btn" id="authBtn" type="submit">Set password</button>
       </form>
       <div id="authMsg" aria-live="polite"></div>`;
     $("#authForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const p1 = $("#a_pw1").value, p2 = $("#a_pw2").value, msg = $("#authMsg"), btn = $("#authBtn");
+      const p1 = $("#a_pw1").value, p2 = $("#a_pw2")?.value ?? p1, msg = $("#authMsg"), btn = $("#authBtn");
       if (p1.length < 8) { msg.innerHTML = `<div class="err">Password must be at least 8 characters.</div>`; return; }
       if (p1 !== p2) { msg.innerHTML = `<div class="err">Passwords don't match.</div>`; return; }
       btn.disabled = true; btn.textContent = "Saving…";
@@ -1249,21 +1269,22 @@ function renderAuth() {
   if (authMode === "signup") {
     card.innerHTML = `
       <h1>Create your account</h1>
-      <p class="note" style="font-size:14.5px">Set up sign-in for your practice.</p>
+      <p class="auth-sub">Draft your first Record of Advice in minutes.</p>
       <form id="authForm" novalidate>
-        <label class="f" for="a_name">Full name<input type="text" id="a_name" autocomplete="name" required maxlength="120" placeholder="As it should appear on your records"></label>
-        <label class="f" for="a_fsp" style="margin-top:12px"><span>FSP number <span class="opt">(yours or your practice's)</span></span><input type="text" id="a_fsp" inputmode="numeric" autocomplete="off" required maxlength="20" placeholder="e.g. 12345"></label>
-        <label class="f" for="a_email" style="margin-top:12px">Email address<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
-        <label class="f" for="a_pw1" style="margin-top:12px">Password<input type="password" id="a_pw1" autocomplete="new-password" required minlength="8"></label>
-        <label class="f" for="a_pw2" style="margin-top:12px">Confirm password<input type="password" id="a_pw2" autocomplete="new-password" required minlength="8"></label>
-        <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Create account</button>
+        <div class="auth-2col">
+          <label class="f" for="a_name">Full name<input type="text" id="a_name" autocomplete="name" required maxlength="120" placeholder="Jane Smith"></label>
+          <label class="f" for="a_fsp">FSP number<input type="text" id="a_fsp" inputmode="numeric" autocomplete="off" required maxlength="20" placeholder="e.g. 12345"></label>
+        </div>
+        <label class="f" for="a_email">Work email<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
+        <label class="f" for="a_pw1">Password<input type="password" id="a_pw1" autocomplete="new-password" required minlength="8"><span class="hint">At least 8 characters.</span></label>
+        <button class="btn btn-primary auth-btn" id="authBtn" type="submit">Create account</button>
       </form>
       <div id="authMsg" aria-live="polite"></div>
-      <p class="note" style="margin-top:16px;text-align:center">Already have an account? <button class="linkbtn" id="toSignin" type="button">Sign in</button></p>`;
+      <p class="auth-switch">Already have an account? <button class="linkbtn" id="toSignin" type="button">Sign in</button></p>`;
     $("#toSignin").addEventListener("click", () => setAuthMode("signin"));
     $("#authForm").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const email = $("#a_email").value.trim(), p1 = $("#a_pw1").value, p2 = $("#a_pw2").value, msg = $("#authMsg"), btn = $("#authBtn");
+      const email = $("#a_email").value.trim(), p1 = $("#a_pw1").value, p2 = $("#a_pw2")?.value ?? p1, msg = $("#authMsg"), btn = $("#authBtn");
       const fullName = $("#a_name").value.trim().replace(/\s+/g, " "), fsp = $("#a_fsp").value.replace(/[\s-]/g, "").replace(/^fsp/i, "");
       const bad = (id, text) => { msg.innerHTML = `<div class="err">${text}</div>`; $(id).focus(); };
       if (fullName.length < 2) return bad("#a_name", "Enter your full name.");
@@ -1284,13 +1305,13 @@ function renderAuth() {
   if (authMode === "forgot") {
     card.innerHTML = `
       <h1>Reset your password</h1>
-      <p class="note" style="font-size:14.5px">Enter your email and we'll send you a password reset link.</p>
+      <p class="auth-sub">Enter your email and we'll send you a link to set a new password.</p>
       <form id="authForm" novalidate>
         <label class="f" for="a_email">Email address<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
-        <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Send reset link</button>
+        <button class="btn btn-primary auth-btn" id="authBtn" type="submit">Send reset link</button>
       </form>
       <div id="authMsg" aria-live="polite"></div>
-      <p class="note" style="margin-top:16px;text-align:center"><button class="linkbtn" id="toSignin" type="button">Back to sign in</button></p>`;
+      <p class="auth-switch"><button class="linkbtn" id="toSignin" type="button">← Back to sign in</button></p>`;
     $("#toSignin").addEventListener("click", () => setAuthMode("signin"));
     $("#authForm").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -1306,18 +1327,18 @@ function renderAuth() {
 
   // default: signin
   card.innerHTML = `
-    <h1>Sign in to Quilla</h1>
-    <p class="note" style="font-size:14.5px">Enter your email and password.</p>
+    <h1>Welcome back</h1>
+    <p class="auth-sub">Sign in to your advice records.</p>
     <form id="authForm" novalidate>
       <label class="f" for="a_email">Email address<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
-      <label class="f" for="a_pw1" style="margin-top:12px">Password<input type="password" id="a_pw1" autocomplete="current-password" required></label>
-      <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Sign in</button>
+      <div class="f-pw">
+        <div class="f-row"><label for="a_pw1">Password</label><button class="linkbtn" id="toForgot" type="button">Forgot password?</button></div>
+        <input type="password" id="a_pw1" autocomplete="current-password" required>
+      </div>
+      <button class="btn btn-primary auth-btn" id="authBtn" type="submit">Sign in</button>
     </form>
     <div id="authMsg" aria-live="polite"></div>
-    <div class="auth-links">
-      <button class="linkbtn" id="toForgot" type="button">Forgot password?</button>
-    </div>
-    <p class="note" style="margin-top:16px;text-align:center">New to Quilla? <button class="linkbtn" id="toSignup" type="button">Create an account</button></p>`;
+    <p class="auth-switch">New to Quilla? <button class="linkbtn" id="toSignup" type="button">Create an account</button></p>`;
   $("#toForgot").addEventListener("click", () => setAuthMode("forgot"));
   $("#toSignup").addEventListener("click", () => setAuthMode("signup"));
   $("#authForm").addEventListener("submit", async (e) => {

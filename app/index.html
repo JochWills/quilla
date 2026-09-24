@@ -17,10 +17,30 @@
 
 <!-- Sign-in screen -->
 <div id="auth" hidden>
-  <div class="auth-wrap">
-    <a class="logo" href="https://quilla.co.za">Quilla</a>
-    <div class="card auth-card" id="authCard"></div>
-    <p class="note auth-legal">By continuing you agree to our <a href="https://quilla.co.za/terms">Terms</a> and <a href="https://quilla.co.za/privacy">Privacy policy</a>.</p>
+  <div class="auth-split">
+    <main class="auth-main">
+      <a class="logo" href="https://quilla.co.za">Quilla</a>
+      <div class="auth-form" id="authCard"></div>
+      <p class="auth-legal">By continuing you agree to our <a href="https://quilla.co.za/terms">Terms</a> and <a href="https://quilla.co.za/privacy">Privacy policy</a>.</p>
+    </main>
+    <aside class="auth-brand">
+      <div class="ab-in">
+        <p class="ab-eyebrow">Built for South African financial advisors</p>
+        <h2 class="ab-title">From conversation to compliant advice.</h2>
+        <ul class="ab-points">
+          <li><span class="ab-tick" aria-hidden="true"></span>Drafts all 13 sections of a FAIS Record of Advice from your meeting notes</li>
+          <li><span class="ab-tick" aria-hidden="true"></span>Flags gaps before your compliance officer does</li>
+          <li><span class="ab-tick" aria-hidden="true"></span>Signed, sealed records with a full audit trail</li>
+        </ul>
+        <div class="ab-card" aria-hidden="true">
+          <div class="ab-card-h"><span class="ab-av">CB</span><div><b>Claire Bennett</b><small>Retirement planning · Example</small></div><span class="ab-pill amber">Draft</span></div>
+          <div class="ab-row"><span>Fees and charges disclosed</span><span class="ab-pill red">Critical · not captured</span></div>
+          <div class="ab-row"><span>Risk profile</span><span class="ab-pill amber">Important</span></div>
+          <div class="ab-row"><span>Replacement of products</span><span class="ab-pill green">Resolved</span></div>
+        </div>
+        <p class="ab-foot"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Encrypted and stored in Ireland. Never used to train AI.</p>
+      </div>
+    </aside>
   </div>
 </div>
 
