@@ -88,7 +88,9 @@ let viewParam = null; // e.g. the client or meeting id for "client" / "meeting"
 let clients = []; // this advisor's clients: {id, name, reference, email, phone, notes, updated_at}
 let leaveGuard = null; // () => true when the current screen has unsaved changes
 let tab = "notes"; // notes | document | signoff | activity
-let authMode = "signin"; // signin | signup | forgot | reset
+// signin | signup | forgot | reset. The landing page's "Get started" links add ?signup=1, and
+// "Try an example meeting" (?example=1) also needs an account first, so both open on sign-up.
+let authMode = /[?&](signup|example)=1\b/.test(location.search) ? "signup" : "signin";
 let busy = null; // AbortController for the in-flight AI call
 let session = null;
 let records = []; // list rows: {id, client_name, advice_area, meeting_date, status, updated_at}
@@ -1399,6 +1401,7 @@ async function startApp() {
   await loadClients();
   await loadRecords();
   const params = new URLSearchParams(location.search);
+  if (params.has("signup")) { params.delete("signup"); const q = params.toString(); history.replaceState(null, "", location.pathname + (q ? `?${q}` : "") + location.hash); }
   if (params.get("view") === "account") {
     history.replaceState(null, "", "/");
     view = "list"; renderApp(); openSettings();
@@ -1422,5 +1425,5 @@ supabase.auth.onAuthStateChange((event, s) => {
   }
   const had = !!session; session = s;
   if (s && !had) startApp();
-  if (!s) { S = blank(); records = []; authMode = "signin"; clearSignedInCookie(); showAuth(); }
+  if (!s) { S = blank(); records = []; if (had) authMode = "signin"; clearSignedInCookie(); showAuth(); } // first load keeps ?signup=1
 });
