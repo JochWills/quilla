@@ -149,14 +149,14 @@ function draw(ctx) {
     <div class="meet-grid">
       <section class="card" style="padding:22px">
         <h3 class="sub">Meeting details</h3>
-        <div class="meta-grid">
-          <label class="f">Client<select id="mt_client"><option value="">Not linked to a client</option>${clients.map((c) => `<option value="${esc(c.id)}" ${c.id === M.client_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
-          <label class="f">Title <span class="hint" style="display:inline">(optional)</span><input type="text" id="mt_title" placeholder="e.g. Retirement review" value="${esc(M.title)}"></label>
-          <label class="f">Date<input type="date" id="mt_date" value="${esc(M.meeting_date || "")}"></label>
-          <label class="f">Type<select id="mt_kind">${Object.entries(KINDS).map(([k, v]) => `<option value="${k}" ${k === M.kind ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+        <div class="form-grid">
+          <label class="f"><span>Client</span><select id="mt_client"><option value="">Not linked to a client</option>${clients.map((c) => `<option value="${esc(c.id)}" ${c.id === M.client_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+          <label class="f"><span>Date</span><input type="date" id="mt_date" value="${esc(M.meeting_date || "")}"></label>
+          <label class="f"><span>Title <span class="opt">(optional)</span></span><input type="text" id="mt_title" placeholder="e.g. Retirement review" value="${esc(M.title)}"></label>
+          <label class="f"><span>Type</span><select id="mt_kind">${Object.entries(KINDS).map(([k, v]) => `<option value="${k}" ${k === M.kind ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+          <label class="f span2"><span>Who attended <span class="opt">(optional)</span></span><input type="text" id="mt_att" placeholder="e.g. Claire and Tom Bennett, and you" value="${esc(M.attendees)}"></label>
+          <label class="f span2"><span>Your notes <span class="opt">(optional)</span></span><textarea id="mt_notes" rows="6" placeholder="Anything not in the recording: documents seen, what you checked afterwards.">${esc(M.notes)}</textarea></label>
         </div>
-        <label class="f" style="margin-top:14px">Who attended <span class="hint" style="display:inline">(optional)</span><input type="text" id="mt_att" placeholder="e.g. Claire and Tom Bennett, you" value="${esc(M.attendees)}"></label>
-        <label class="f" style="margin-top:14px">Your notes <span class="hint">Anything not in the recording: documents seen, what you checked afterwards.</span><textarea id="mt_notes" rows="6">${esc(M.notes)}</textarea></label>
       </section>
       <section class="card" style="padding:22px">
         <h3 class="sub">Recording and transcript</h3>
