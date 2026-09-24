@@ -216,7 +216,48 @@ function renderApp() {
   else if (view === "meetings") renderMeetings(ctx); else if (view === "meeting") renderMeeting(ctx, viewParam);
   else if (view === "templates") renderTemplates(ctx); else if (view === "compliance") renderCompliance(ctx);
   else renderRecord();
+  syncRoute();
 }
+
+/* ---------------- History (Back / swipe back) ---------------- */
+// Each screen gets a hash address (#/clients/<id>, #/records/<id>…) pushed onto the browser
+// history, so Back steps out of a client or record instead of leaving the app. Hash routes
+// need no server rewrites on Render and survive a reload.
+let routeMode = "push"; // "replace" while we're following a Back/Forward step
+function routeHash() {
+  const e = encodeURIComponent;
+  if (view === "clients" || view === "templates" || view === "compliance" || view === "meetings") return `#/${view}`;
+  if (view === "client") return `#/clients/${e(viewParam)}`;
+  if (view === "meeting") return typeof viewParam === "string" ? `#/meetings/${e(viewParam)}` : "#/meetings/new";
+  if (view === "record") return `#/records/${e(S.id)}`;
+  return "#/";
+}
+function parseHash(h) {
+  const p = (h || "").replace(/^#\/?/, "").split("/").filter(Boolean).map((x) => { try { return decodeURIComponent(x); } catch { return x; } });
+  if (p[0] === "clients") return p[1] ? { view: "client", param: p[1] } : { view: "clients" };
+  if (p[0] === "meetings") return p[1] ? { view: "meeting", param: p[1] === "new" ? {} : p[1] } : { view: "meetings" };
+  if (p[0] === "records" && p[1]) return { view: "record", param: p[1] };
+  if (p[0] === "templates" || p[0] === "compliance") return { view: p[0] };
+  return { view: "list" };
+}
+function syncRoute() {
+  const h = routeHash(), cur = location.hash || "#/";
+  if (h === cur) return;
+  history[routeMode === "replace" ? "replaceState" : "pushState"](null, "", location.pathname + location.search + h);
+}
+// Go to whatever screen the address names, without adding a history entry.
+async function followRoute() {
+  const r = parseHash(location.hash);
+  routeMode = "replace";
+  try {
+    if (r.view === "record") { if (r.param !== S.id || view !== "record") await openRecord(r.param); }
+    else if (r.view !== view || JSON.stringify(r.param ?? null) !== JSON.stringify(viewParam ?? null)) await go(r.view, r.param ?? null);
+  } finally {
+    routeMode = "replace"; syncRoute(); // if leaving was cancelled or failed, point the address back at this screen
+    routeMode = "push";
+  }
+}
+addEventListener("popstate", () => { if (!$("#app").hidden) followRoute(); });
 // Leave the current screen: finish saves, protect a live recording and unsaved templates.
 async function canLeave() {
   if (busy) return false;
@@ -607,7 +648,11 @@ async function openRecord(id) {
   if (!(await canLeave())) return;
   if (id !== S.id) {
     const { data, error } = await supabase.from("records").select("data").eq("id", id).single();
-    if (error || !data) { toast("Couldn't open that record."); return; }
+    if (error || !data) {
+      toast("Couldn't open that record.");
+      if (routeMode === "replace") { view = "list"; renderApp(); } // arrived from an address that no longer works
+      return;
+    }
     S = Object.assign(blank(), data.data, { id });
   }
   view = "record"; tab = S.sections ? (S.status === "signed" ? "signoff" : "document") : "notes";
@@ -1256,8 +1301,10 @@ async function startApp() {
   if (params.get("example") === "1") {
     history.replaceState(null, "", "/");
     S = blank(); view = "record"; loadExample();
+  } else if (parseHash(location.hash).view !== "list") {
+    view = "list"; await followRoute(); // reload or shared address: reopen that screen
   } else {
-    view = "list"; renderApp();
+    view = "list"; routeMode = "replace"; renderApp(); routeMode = "push";
   }
 }
 supabase.auth.onAuthStateChange((event, s) => {
