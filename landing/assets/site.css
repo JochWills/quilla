@@ -68,7 +68,7 @@ a{color:inherit}
 .home .nav{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;transition:background .2s}
 .home .nav.scrolled{background:color-mix(in srgb,#EEF0EE 90%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 .scene{position:relative;overflow:hidden;margin-top:calc(-1 * var(--nav-h,100px));padding-top:var(--nav-h,100px);min-height:clamp(760px,100vh,920px);display:flex;flex-direction:column;background:#EDF1F2}
-.scene::before{content:"";position:absolute;left:0;right:0;top:0;bottom:calc(-1 * var(--wave-drop,56px));background:#1A4A4B url(/assets/hero.jpg) center bottom / cover no-repeat;z-index:0;pointer-events:none}
+.scene::before{content:"";position:absolute;left:0;right:0;top:0;bottom:calc(-1 * var(--wave-drop,56px));background:url(/assets/hero.jpg) center bottom / cover no-repeat,linear-gradient(180deg,#ECF4F8 0%,#F8F6F3 22%,#EDEDEA 40%,#D6D3CF 50%,#BECDCF 60%,#79A1A5 70%,#36676A 80%,#174447 90%,#154346 100%);z-index:0;pointer-events:none}
 
 .scene-in{position:relative;z-index:1;width:100%;max-width:1160px;margin:0 auto;padding:0 28px}
 .hero.scene-in{z-index:auto}

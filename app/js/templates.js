@@ -3,6 +3,8 @@
 // guidance: read server-side by the `ai` function when drafting and improving (never a source of facts).
 // standard: appended by the app to that section after each draft, visibly marked.
 
+import { IC, pageHead, tabsBar, bindTabs, searchBox } from "./ui.js";
+
 const MAX = { guidance: 500, standard: 2000 };
 const EXAMPLES = {
   risk_profile: ["e.g. Always say which risk questionnaire was used and the date it was completed.", ""],
@@ -10,13 +12,19 @@ const EXAMPLES = {
   conflicts: ["", "e.g. I am paid through the advice fees agreed with the client and, where applicable, product commission. I have disclosed any financial interest in the products recommended."],
 };
 
+let tTab = "all", tQuery = "";
+const SAVE_IC = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+
 export function renderTemplates(ctx) {
   const { $, esc } = ctx;
   const t = ctx.profile.template || {};
   const filled = Object.values(t).filter((e) => e?.guidance || e?.standard).length;
   $("#content").innerHTML = `
-    <div class="list-head"><div><h1>Templates</h1><div class="rec-sub">${filled ? `${filled} of 13 sections customised` : "Make every draft sound like your practice"}</div></div>
-      <button class="btn btn-primary btn-sm" id="tplSave">Save templates</button></div>
+    ${pageHead("Templates", "Make every draft sound like your practice: guidance for the AI and standard wording, section by section.", { id: "tplSave", label: "Save templates", icon: SAVE_IC })}
+    <div class="ltools">
+      ${tabsBar([["all", "All sections", IC.grid, 13], ["custom", "Customised", IC.sparkle, filled], ["plain", "Not customised", IC.file, 13 - filled]], tTab, "Filter sections")}
+      <div class="lsearch-wrap">${searchBox("tplSearch", "Search sections…", esc(tQuery))}</div>
+    </div>
     <div class="card tpl-intro">
       <p><b>Guidance</b> tells Quilla how you like a section written or what to look for in your notes. It's never treated as a fact about the client.</p>
       <p><b>Standard wording</b> is text you use in every record, such as your fee or remuneration disclosure. It's added to the end of that section after drafting, so you can see and edit it before signing.</p>
@@ -24,8 +32,9 @@ export function renderTemplates(ctx) {
     <div class="tpl-list">
       ${ctx.SECTIONS.map(([id, title, hint], i) => {
         const e = t[id] || {}, ex = EXAMPLES[id] || ["", ""];
-        return `<section class="card tpl" id="tpl-${id}">
-          <div class="tpl-h"><span class="num">${i + 1}</span><div><h3>${esc(title)}</h3><p class="note">${esc(hint)}</p></div></div>
+        const on = !!(e.guidance || e.standard);
+        return `<section class="card tpl" id="tpl-${id}" data-title="${esc(title.toLowerCase())}">
+          <div class="tpl-h"><span class="num">${i + 1}</span><div><h3>${esc(title)}</h3><p class="note">${esc(hint)}</p></div>${on ? `<span class="pill signed sm tpl-on">${IC.check}Customised</span>` : ""}</div>
           <div class="tpl-grid">
             <label class="f">Guidance for the AI <span class="hint">Optional. Up to ${MAX.guidance} characters.</span>
               <textarea data-tpl="${id}" data-k="guidance" rows="3" maxlength="${MAX.guidance}" placeholder="${esc(ex[0] || "e.g. Keep it to two or three sentences.")}">${esc(e.guidance || "")}</textarea></label>
@@ -35,7 +44,21 @@ export function renderTemplates(ctx) {
         </section>`;
       }).join("")}
     </div>
+    <div class="lempty card" id="tplNone" hidden>No sections match.</div>
     <div class="cap-foot" style="margin-top:6px"><button class="btn btn-primary" id="tplSave2">Save templates</button></div>`;
+  // Tabs and search only hide cards, so unsaved text in hidden sections is kept and saved.
+  const filter = () => {
+    const q = tQuery.trim().toLowerCase(); let shown = 0;
+    $("#content").querySelectorAll(".tpl").forEach((card) => {
+      const on = [...card.querySelectorAll("textarea")].some((ta) => ta.value.trim());
+      const hit = (tTab === "all" || (tTab === "custom") === on) && (!q || card.dataset.title.includes(q));
+      card.hidden = !hit; if (hit) shown++;
+    });
+    $("#tplNone").hidden = !!shown;
+  };
+  bindTabs($("#content"), (k) => { tTab = k; $("#content").querySelectorAll("[data-ltab]").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.ltab === k))); filter(); });
+  $("#tplSearch").addEventListener("input", (e) => { tQuery = e.target.value; filter(); });
+  filter();
   let dirty = false;
   $("#content").querySelectorAll("[data-tpl]").forEach((ta) => ta.addEventListener("input", () => { dirty = true; ctx.$("#savestate").textContent = "Unsaved"; }));
   const save = async (btn) => {

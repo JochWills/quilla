@@ -13,6 +13,7 @@ import { renderMeetings, renderMeeting, isRecording, flushMeeting } from "./meet
 import { renderTemplates } from "./templates.js";
 import { renderCompliance } from "./compliance.js";
 import { initControls, openPop } from "./controls.js";
+import { IC, initials, rowMenu } from "./ui.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // The landing site's "Sign out" link (no session of its own) points here with ?signout=1.
@@ -381,23 +382,6 @@ function openSettings(section = "profile") {
 /* ---------------- Records list ---------------- */
 // Status tabs, in-page search, filter panel, sortable columns, row selection with bulk actions,
 // and a per-row actions menu. Archived records (archived_at set) only show under Archived.
-const IC = {
-  file: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/></svg>`,
-  box: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9M10 13h4"/></svg>`,
-  brief: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 12h18M11 12v2h2v-2"/></svg>`,
-  cal: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01"/></svg>`,
-  sort: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 9l4-4 4 4M8 15l4 4 4-4"/></svg>`,
-  up: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 14l4-4 4 4"/></svg>`,
-  down: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10l4 4 4-4"/></svg>`,
-  search: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>`,
-  filter: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16l-6 7.5V19l-4 2v-8.5z"/></svg>`,
-  more: `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>`,
-  plus: `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>`,
-  arrow: `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>`,
-  check: `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10.2l2.4 2.4 4.6-4.8"/></svg>`,
-  pen: `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 6v4.2l2.6 1.6"/></svg>`,
-  note: `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M6.5 10h7"/></svg>`,
-};
 const LIST_TABS = [
   ["all", "All records", IC.file], ["notes", "Notes only", IC.file], ["draft", "Drafts", IC.file],
   ["signed", "Signed off", `<span class="tab-dot" aria-hidden="true"></span>`], ["archived", "Archived", IC.box],
@@ -407,7 +391,6 @@ let listTab = "all", listQuery = "", listSort = { key: "", dir: 1 }, listFilter 
 const picked = new Set();
 
 const isArchived = (r) => !!r.archived_at;
-const initials = (n) => (n || "?").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
 function inPeriod(date, p) {
   if (!p) return true;
   if (!date) return false;
@@ -534,24 +517,12 @@ function drawBulkbar() {
 function openRowMenu(btn) {
   const r = records.find((x) => x.id === btn.dataset.menu); if (!r) return;
   const hasClient = r.client_id && clients.some((x) => x.id === r.client_id);
-  const { pop, close } = openPop(btn, "cc-menu", (pop) => {
-    pop.setAttribute("role", "menu");
-    pop.innerHTML = `<button role="menuitem" data-a="open">${IC.file}Open record</button>
-      ${hasClient ? `<button role="menuitem" data-a="client">${IC.arrow}View client</button>` : ""}
-      <button role="menuitem" data-a="arch">${IC.box}${isArchived(r) ? "Unarchive" : "Archive"}</button>
-      <hr><button role="menuitem" data-a="del" class="danger"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Delete</button>`;
-  }, { align: "end" });
-  const items = [...pop.querySelectorAll("[role=menuitem]")];
-  items[0].focus();
-  pop.addEventListener("keydown", (e) => {
-    const i = items.indexOf(document.activeElement);
-    const n = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: items.length - 1 }[e.key];
-    if (n !== undefined) { e.preventDefault(); items[(n + items.length) % items.length].focus(); }
-    if (e.key === "Tab") close(false);
-  });
-  pop.addEventListener("click", (e) => {
-    const a = e.target.closest("[data-a]")?.dataset.a; if (!a) return;
-    close(false);
+  rowMenu(btn, [
+    { a: "open", label: "Open record", icon: IC.file },
+    hasClient && { a: "client", label: "View client", icon: IC.user },
+    { a: "arch", label: isArchived(r) ? "Unarchive" : "Archive", icon: IC.box },
+    "sep", { a: "del", label: "Delete", icon: IC.trash, danger: true },
+  ], (a) => {
     if (a === "open") openRecord(r.id);
     else if (a === "client") go("client", r.client_id);
     else if (a === "arch") setArchived([r.id], !isArchived(r));

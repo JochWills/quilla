@@ -2,6 +2,8 @@
 // Records of Advice and meetings. Rendered into #content with the shared ctx from app.js.
 // No ID numbers are collected (POPIA minimisation).
 
+import { IC, initials, pageHead, tabsBar, bindTabs, setTabCounts, searchBox, sortTh, sortRows, bindSort, rowMenu, kebab } from "./ui.js";
+
 const FIELDS = [
   ["name", "Client name", "text", "name"],
   ["reference", "Your reference", "text", "off", "e.g. CB-0921"],
@@ -29,38 +31,97 @@ async function refreshMeetings(ctx) {
   return meetingsCache || [];
 }
 
+let cTab = "all", cQuery = "", cSort = { key: "", dir: 1 };
+
 export function renderClients(ctx) {
   const seq = ctx.seq();
-  let shown = "";
-  const paint = () => {
-    const html = clientsHtml(ctx);
-    if (html === shown) return;
-    shown = html; ctx.$("#content").innerHTML = html; bindClients(ctx);
-  };
-  paint();
-  Promise.all([ctx.loadClients(), refreshMeetings(ctx)]).then(() => { if (ctx.seq() === seq) paint(); });
+  drawClientsShell(ctx);
+  Promise.all([ctx.loadClients(), refreshMeetings(ctx)]).then(() => {
+    if (ctx.seq() !== seq) return;
+    if (!ctx.clients().length || !ctx.$("#clSearch")) return drawClientsShell(ctx); // switched between empty and non-empty
+    setTabCounts(ctx.$("#content"), counts(ctx)); drawClientsTable(ctx);
+  });
 }
-function clientsHtml(ctx) {
-  const { esc } = ctx;
-  const meetingsBy = {}; (meetingsCache || []).forEach((m) => { if (m.client_id) meetingsBy[m.client_id] = (meetingsBy[m.client_id] || 0) + 1; });
-  const recordsBy = {}; ctx.records().forEach((r) => { if (r.client_id) recordsBy[r.client_id] = (recordsBy[r.client_id] || 0) + 1; });
-  const clients = ctx.clients();
-  const mCount = (id) => (meetingsCache ? meetingsBy[id] || 0 : "…");
-  return `
-    <div class="list-head"><div><h1>Clients</h1><div class="rec-sub">${clients.length} client${clients.length === 1 ? "" : "s"}</div></div><button class="btn btn-primary btn-sm" id="addClient">New client</button></div>
-    ${clients.length ? `<div class="card" style="overflow-x:auto"><table class="rtable"><thead><tr><th>Client</th><th class="hide-sm">Reference</th><th>Records</th><th class="hide-sm">Meetings</th><th class="hide-sm">Updated</th></tr></thead><tbody>
-      ${clients.map((c) => `<tr data-client="${esc(c.id)}" tabindex="0"><td class="client">${esc(c.name)}</td><td class="hide-sm">${esc(c.reference || "—")}</td><td>${recordsBy[c.id] || 0}</td><td class="hide-sm">${mCount(c.id)}</td><td class="hide-sm">${esc(ctx.fmtDate(String(c.updated_at).slice(0, 10)))}</td></tr>`).join("")}
-    </tbody></table></div>` : `<div class="card empty"><h2>Keep your clients in one place</h2><p>Add a client once, then start their Records of Advice and meetings from their page. Their name and reference fill in for you.</p><button class="btn btn-primary" id="addClient2">Add your first client</button></div>`}`;
+function stats(ctx) {
+  const recs = {}, open = {}, meets = {};
+  ctx.records().forEach((r) => { if (!r.client_id || r.archived_at) return; recs[r.client_id] = (recs[r.client_id] || 0) + 1; if (r.status !== "signed") open[r.client_id] = (open[r.client_id] || 0) + 1; });
+  (meetingsCache || []).forEach((m) => { if (m.client_id) meets[m.client_id] = (meets[m.client_id] || 0) + 1; });
+  return { recs, open, meets };
 }
-function bindClients(ctx) {
-  const { $ } = ctx;
+function counts(ctx) {
+  const { recs, open } = stats(ctx), cl = ctx.clients();
+  return { all: cl.length, open: cl.filter((c) => open[c.id]).length, none: cl.filter((c) => !recs[c.id]).length };
+}
+function drawClientsShell(ctx) {
+  const { $, esc } = ctx, clients = ctx.clients();
+  if (!clients.length) {
+    $("#content").innerHTML = `${pageHead("Clients", "Keep every client's records and meetings in one place.", { id: "addClient", label: "New client" })}
+      <div class="card empty"><h2>Keep your clients in one place</h2><p>Add a client once, then start their Records of Advice and meetings from their page. Their name and reference fill in for you.</p><button class="btn btn-primary" id="addClient2">Add your first client</button></div>`;
+  } else {
+    const n = counts(ctx);
+    $("#content").innerHTML = `${pageHead("Clients", "Keep every client's records and meetings in one place.", { id: "addClient", label: "New client" })}
+      <div class="ltools">
+        ${tabsBar([["all", "All clients", IC.users, n.all], ["open", "Records to finish", IC.pen, n.open], ["none", "No records yet", IC.user, n.none]], cTab, "Filter clients")}
+        <div class="lsearch-wrap">${searchBox("clSearch", "Search clients…", esc(cQuery))}</div>
+      </div>
+      <div class="card ltable-card" id="clTable"></div>`;
+    drawClientsTable(ctx);
+    bindTabs($("#content"), (k) => { cTab = k; drawClientsShell(ctx); });
+    $("#clSearch").addEventListener("input", (e) => { cQuery = e.target.value; drawClientsTable(ctx); });
+  }
   const openForm = () => newClientDialog(ctx);
   $("#addClient").addEventListener("click", openForm);
   $("#addClient2")?.addEventListener("click", openForm);
-  $("#content").querySelectorAll("[data-client]").forEach((tr) => {
+}
+function drawClientsTable(ctx) {
+  const { $, esc } = ctx, wrap = $("#clTable"); if (!wrap) return;
+  const { recs, open, meets } = stats(ctx), q = cQuery.trim().toLowerCase();
+  let rows = ctx.clients().filter((c) => (cTab === "open" ? open[c.id] : cTab === "none" ? !recs[c.id] : true));
+  if (q) rows = rows.filter((c) => `${c.name} ${c.reference || ""} ${c.email || ""} ${c.phone || ""}`.toLowerCase().includes(q));
+  rows = sortRows(rows, cSort, { name: (c) => c.name.toLowerCase(), recs: (c) => recs[c.id] || 0, meets: (c) => meets[c.id] || 0, updated: (c) => c.updated_at || "" });
+  const mCount = (id) => (meetingsCache ? meets[id] || 0 : "…");
+  wrap.innerHTML = rows.length ? `<table class="rtable ltable"><thead><tr>
+      ${sortTh(cSort, "name", "Client")}<th class="hide-sm">Reference</th>${sortTh(cSort, "recs", "Records")}${sortTh(cSort, "meets", "Meetings", "hide-sm")}${sortTh(cSort, "updated", "Last updated", "hide-sm")}<th class="act">Actions</th></tr></thead><tbody>
+    ${rows.map((c) => `<tr data-client="${esc(c.id)}" tabindex="0">
+      <td><div class="who"><span class="wav" aria-hidden="true">${esc(initials(c.name))}</span><div class="who-t"><span class="who-n">${esc(c.name)}</span><span class="who-none">${esc(c.email || c.phone || "No contact details")}</span></div></div></td>
+      <td class="hide-sm">${c.reference ? `<span class="ref">${esc(c.reference)}</span>` : `<span class="who-none">—</span>`}</td>
+      <td><span class="icell">${IC.file}${recs[c.id] || 0}${open[c.id] ? `<span class="pill draft sm">${open[c.id]} to finish</span>` : ""}</span></td>
+      <td class="hide-sm"><span class="icell">${IC.meet}${mCount(c.id)}</span></td>
+      <td class="hide-sm"><span class="icell">${IC.cal}${esc(ctx.fmtDate(String(c.updated_at).slice(0, 10)))}</span></td>
+      <td class="act">${kebab(esc(c.id), esc(c.name), "data-cmenu")}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="lempty">${q ? `No clients match “${esc(cQuery.trim())}”.` : cTab === "open" ? "No clients have records waiting to be finished." : "Every client has at least one record."}</div>`;
+  bindSort(wrap, () => cSort, (s) => { cSort = s; drawClientsTable(ctx); });
+  wrap.querySelectorAll("[data-client]").forEach((tr) => {
     tr.addEventListener("click", () => ctx.go("client", tr.dataset.client));
-    tr.addEventListener("keydown", (e) => { if (e.key === "Enter") ctx.go("client", tr.dataset.client); });
+    tr.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === tr) ctx.go("client", tr.dataset.client); });
   });
+  wrap.querySelectorAll("[data-cmenu]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); clientMenu(ctx, b); }));
+}
+
+// Row ⋯ menu.
+function clientMenu(ctx, btn) {
+  const c = ctx.clients().find((x) => x.id === btn.dataset.cmenu); if (!c) return;
+  rowMenu(btn, [
+    { a: "open", label: "Open client", icon: IC.user },
+    { a: "rec", label: "New record", icon: IC.rec },
+    { a: "meet", label: "New meeting", icon: IC.meet },
+    "sep", { a: "del", label: "Delete client", icon: IC.trash, danger: true },
+  ], (a) => {
+    if (a === "open") ctx.go("client", c.id);
+    else if (a === "rec") ctx.startRecord({ client: c });
+    else if (a === "meet") ctx.go("meeting", { clientId: c.id });
+    else if (a === "del") deleteClient(ctx, c, () => renderClients(ctx));
+  });
+}
+// Records and meetings are kept, just unlinked (the database sets client_id to null).
+async function deleteClient(ctx, c, after) {
+  const ok = await ctx.confirmBox({ title: `Delete ${c.name}?`, body: "Their Records of Advice and meetings are kept, but no longer linked to a client. This can't be undone.", confirmLabel: "Delete client", danger: true });
+  if (!ok) return;
+  const { error } = await ctx.supabase.from("clients").delete().eq("id", c.id);
+  if (error) { ctx.toast("Couldn't delete the client. Try again."); return; }
+  ctx.records().forEach((r) => { if (r.client_id === c.id) r.client_id = null; });
+  (meetingsCache || []).forEach((m) => { if (m.client_id === c.id) m.client_id = null; });
+  await ctx.loadClients(); ctx.toast("Client deleted"); after();
 }
 
 // New client popup (same <dialog> styling as confirmBox in app.js). Esc, Cancel or a
@@ -148,14 +209,7 @@ function drawClient(ctx, id, c, meetings) {
     if (error) { $("#cl_msg").innerHTML = `<div class="err">Couldn't save. Try again.</div>`; return; }
     await ctx.loadClients(); ctx.toast("Client saved"); $("#content").dataset.clDirty = "0"; renderClient(ctx, id);
   });
-  $("#cl_del").addEventListener("click", async () => {
-    const ok = await ctx.confirmBox({ title: `Delete ${c.name}?`, body: "Their Records of Advice and meetings are kept, but no longer linked to a client. This can't be undone.", confirmLabel: "Delete client", danger: true });
-    if (!ok) return;
-    const { error } = await ctx.supabase.from("clients").delete().eq("id", id);
-    if (error) { ctx.toast("Couldn't delete the client. Try again."); return; }
-    ctx.records().forEach((r) => { if (r.client_id === id) r.client_id = null; });
-    await ctx.loadClients(); ctx.toast("Client deleted"); ctx.go("clients");
-  });
+  $("#cl_del").addEventListener("click", () => deleteClient(ctx, c, () => ctx.go("clients")));
 }
 
 export function transcriptLabel(m) {

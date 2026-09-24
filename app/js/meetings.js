@@ -5,6 +5,7 @@
 // upload need the client's consent to be recorded first (the function checks it too).
 
 import { transcriptLabel } from "./clients.js";
+import { IC, initials, pageHead, tabsBar, bindTabs, setTabCounts, searchBox, sortTh, sortRows, bindSort, rowMenu, kebab } from "./ui.js";
 
 const KINDS = { in_person: "In person", video: "Video call", phone: "Phone call" };
 const MAX_AUDIO = 50 * 1024 * 1024; // matches the bucket limit
@@ -26,39 +27,100 @@ let saveTimer = null;
 /* ---------------- List ---------------- */
 // The list draws at once from the last visit's rows, then refreshes in the background and
 // repaints only if something changed.
-let listCache = null;
+const LIST_COLS = "id, title, meeting_date, kind, client_id, transcript_source, transcription_status, record_id, audio_path";
+const KIND_IC = { in_person: IC.users, video: IC.video, phone: IC.phone };
+let listCache = null, mTab = "all", mQuery = "", mSort = { key: "", dir: 1 };
+
 export async function renderMeetings(ctx) {
   const seq = ctx.seq();
-  let shown = "";
-  const paint = (rows, error) => {
-    const html = meetingsHtml(ctx, rows, error);
-    if (html === shown) return;
-    shown = html; ctx.$("#content").innerHTML = html; bindMeetings(ctx);
-  };
-  if (listCache) paint(listCache, null);
-  else ctx.$("#content").innerHTML = `<div class="list-head"><div><h1>Meetings</h1><div class="rec-sub">Loading…</div></div></div>`;
-  const { data, error } = await ctx.supabase.from("meetings").select("id, title, meeting_date, kind, client_id, transcript_source, transcription_status, record_id").order("meeting_date", { ascending: false }).limit(500);
-  if (!error) listCache = data || [];
-  if (ctx.seq() === seq) paint(listCache || [], error && !listCache);
+  if (listCache) drawMeetingsShell(ctx);
+  else ctx.$("#content").innerHTML = `${pageHead("Meetings", "Loading…")}`;
+  const { data, error } = await ctx.supabase.from("meetings").select(LIST_COLS).order("meeting_date", { ascending: false }).limit(500);
+  if (ctx.seq() !== seq) return;
+  if (error) { if (!listCache) ctx.$("#content").innerHTML = `${pageHead("Meetings", "")}<div class="err">Couldn't load meetings. Refresh to try again.</div>`; return; }
+  const was = JSON.stringify(listCache); listCache = data || [];
+  if (was === JSON.stringify(listCache) && ctx.$("#mtTable, .empty")) return;
+  if (ctx.$("#mtSearch") && listCache.length) { setTabCounts(ctx.$("#content"), mCounts()); drawMeetingsTable(ctx); }
+  else drawMeetingsShell(ctx);
 }
-function meetingsHtml(ctx, rows, error) {
-  const { esc } = ctx;
-  const name = (id) => ctx.clients().find((c) => c.id === id)?.name || "—";
-  return `
-    <div class="list-head"><div><h1>Meetings</h1><div class="rec-sub">${rows.length} meeting${rows.length === 1 ? "" : "s"}</div></div><button class="btn btn-primary btn-sm" id="addMeeting">New meeting</button></div>
-    ${error ? `<div class="err">Couldn't load meetings. Refresh to try again.</div>` : rows.length ? `<div class="card" style="overflow-x:auto"><table class="rtable"><thead><tr><th>Meeting</th><th>Client</th><th class="hide-sm">Date</th><th class="hide-sm">Transcript</th><th class="hide-sm">Record</th></tr></thead><tbody>
-      ${rows.map((m) => `<tr data-meeting="${esc(m.id)}" tabindex="0"><td class="client">${esc(m.title || KINDS[m.kind] || "Meeting")}</td><td>${esc(name(m.client_id))}</td><td class="hide-sm">${esc(ctx.fmtDate(m.meeting_date))}</td><td class="hide-sm">${esc(transcriptLabel(m))}</td><td class="hide-sm">${m.record_id ? "Started" : "—"}</td></tr>`).join("")}
-    </tbody></table></div>` : `<div class="card empty"><h2>Record a meeting, get a Record of Advice</h2><p>Log a client meeting, record it here or upload the recording or transcript from Teams, Zoom or Google Meet. Quilla turns the transcript into a draft Record of Advice.</p><button class="btn btn-primary" id="addMeeting2">New meeting</button></div>`}`;
+const mCounts = () => ({ all: listCache.length, open: listCache.filter((m) => !m.record_id).length, started: listCache.filter((m) => m.record_id).length });
+const clientName = (ctx, id) => ctx.clients().find((c) => c.id === id)?.name || "";
+function transcriptPill(m) {
+  const label = transcriptLabel(m);
+  const tone = m.transcription_status === "failed" ? "bad" : m.transcription_status === "processing" || m.transcription_status === "uploaded" ? "draft" : m.transcript_source ? "signed" : "notes";
+  return `<span class="pill ${tone}">${tone === "signed" ? IC.check : tone === "bad" ? IC.bad : tone === "draft" ? IC.pen : IC.note}${label}</span>`;
 }
-function bindMeetings(ctx) {
-  const { $ } = ctx;
-  const add = () => ctx.go("meeting", {});
-  $("#addMeeting").addEventListener("click", add);
-  $("#addMeeting2")?.addEventListener("click", add);
-  $("#content").querySelectorAll("[data-meeting]").forEach((tr) => {
+function drawMeetingsShell(ctx) {
+  const { $, esc } = ctx, add = { id: "addMeeting", label: "New meeting" };
+  if (!listCache.length) {
+    $("#content").innerHTML = `${pageHead("Meetings", "Record or upload a client meeting and turn it into a Record of Advice.", add)}
+      <div class="card empty"><h2>Record a meeting, get a Record of Advice</h2><p>Log a client meeting, record it here or upload the recording or transcript from Teams, Zoom or Google Meet. Quilla turns the transcript into a draft Record of Advice.</p><button class="btn btn-primary" id="addMeeting2">New meeting</button></div>`;
+  } else {
+    const n = mCounts();
+    $("#content").innerHTML = `${pageHead("Meetings", "Record or upload a client meeting and turn it into a Record of Advice.", add)}
+      <div class="ltools">
+        ${tabsBar([["all", "All meetings", IC.meet, n.all], ["open", "No record yet", IC.mic, n.open], ["started", "Record started", IC.file, n.started]], mTab, "Filter meetings")}
+        <div class="lsearch-wrap">${searchBox("mtSearch", "Search meetings…", esc(mQuery))}</div>
+      </div>
+      <div class="card ltable-card" id="mtTable"></div>`;
+    drawMeetingsTable(ctx);
+    bindTabs($("#content"), (k) => { mTab = k; drawMeetingsShell(ctx); });
+    $("#mtSearch").addEventListener("input", (e) => { mQuery = e.target.value; drawMeetingsTable(ctx); });
+  }
+  const go = () => ctx.go("meeting", {});
+  $("#addMeeting").addEventListener("click", go);
+  $("#addMeeting2")?.addEventListener("click", go);
+}
+function drawMeetingsTable(ctx) {
+  const { $, esc } = ctx, wrap = $("#mtTable"); if (!wrap) return;
+  const q = mQuery.trim().toLowerCase();
+  let rows = listCache.filter((m) => (mTab === "open" ? !m.record_id : mTab === "started" ? m.record_id : true));
+  if (q) rows = rows.filter((m) => `${m.title || ""} ${KINDS[m.kind] || ""} ${clientName(ctx, m.client_id)} ${ctx.fmtDate(m.meeting_date)}`.toLowerCase().includes(q));
+  rows = sortRows(rows, mSort, { title: (m) => (m.title || KINDS[m.kind] || "").toLowerCase(), client: (m) => clientName(ctx, m.client_id).toLowerCase() || "~", date: (m) => m.meeting_date || "" });
+  wrap.innerHTML = rows.length ? `<table class="rtable ltable"><thead><tr>
+      ${sortTh(mSort, "title", "Meeting")}${sortTh(mSort, "client", "Client")}${sortTh(mSort, "date", "Date", "hide-sm")}<th class="hide-sm">Transcript</th><th class="hide-sm">Record of Advice</th><th class="act">Actions</th></tr></thead><tbody>
+    ${rows.map((m) => { const cn = clientName(ctx, m.client_id); return `<tr data-meeting="${esc(m.id)}" tabindex="0">
+      <td><div class="who"><span class="wav ic" aria-hidden="true">${KIND_IC[m.kind] || IC.meet}</span><div class="who-t"><span class="who-n">${esc(m.title || KINDS[m.kind] || "Meeting")}</span><span class="who-none">${esc(KINDS[m.kind] || "Meeting")}</span></div></div></td>
+      <td>${cn ? `<span class="icell"><span class="wav sm" aria-hidden="true">${esc(initials(cn))}</span>${esc(cn)}</span>` : `<span class="who-none">Not linked</span>`}</td>
+      <td class="hide-sm"><span class="icell">${IC.cal}${esc(ctx.fmtDate(m.meeting_date))}</span></td>
+      <td class="hide-sm">${transcriptPill(m)}</td>
+      <td class="hide-sm">${m.record_id ? `<button class="who-link" data-rec="${esc(m.record_id)}">Open record${IC.arrow}</button>` : `<span class="who-none">Not started</span>`}</td>
+      <td class="act">${kebab(esc(m.id), esc(m.title || "meeting"), "data-mmenu")}</td></tr>`; }).join("")}</tbody></table>`
+    : `<div class="lempty">${q ? `No meetings match “${esc(mQuery.trim())}”.` : mTab === "open" ? "Every meeting has a Record of Advice started." : "No meetings have a Record of Advice yet."}</div>`;
+  bindSort(wrap, () => mSort, (s) => { mSort = s; drawMeetingsTable(ctx); });
+  wrap.querySelectorAll("tr[data-meeting]").forEach((tr) => {
     tr.addEventListener("click", () => ctx.go("meeting", tr.dataset.meeting));
-    tr.addEventListener("keydown", (e) => { if (e.key === "Enter") ctx.go("meeting", tr.dataset.meeting); });
+    tr.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target === tr) ctx.go("meeting", tr.dataset.meeting); });
   });
+  wrap.querySelectorAll("[data-rec]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); ctx.openRecord(b.dataset.rec); }));
+  wrap.querySelectorAll("[data-mmenu]").forEach((b) => b.addEventListener("click", (e) => { e.stopPropagation(); meetingMenu(ctx, b); }));
+}
+function meetingMenu(ctx, btn) {
+  const m = listCache.find((x) => x.id === btn.dataset.mmenu); if (!m) return;
+  rowMenu(btn, [
+    { a: "open", label: "Open meeting", icon: IC.meet },
+    m.record_id && { a: "rec", label: "Open Record of Advice", icon: IC.file },
+    m.client_id && clientName(ctx, m.client_id) && { a: "client", label: "View client", icon: IC.user },
+    "sep", { a: "del", label: "Delete meeting", icon: IC.trash, danger: true },
+  ], async (a) => {
+    if (a === "open") ctx.go("meeting", m.id);
+    else if (a === "rec") ctx.openRecord(m.record_id);
+    else if (a === "client") ctx.go("client", m.client_id);
+    else if (a === "del") {
+      if (!(await deleteMeeting(ctx, m))) return;
+      listCache = listCache.filter((x) => x.id !== m.id); drawMeetingsShell(ctx);
+    }
+  });
+}
+// Shared by the list menu and the meeting page. Audio (if any is still waiting) goes too.
+async function deleteMeeting(ctx, m) {
+  const ok = await ctx.confirmBox({ title: "Delete this meeting?", body: "The meeting details and transcript will be permanently deleted. Any Record of Advice started from it is kept.", confirmLabel: "Delete meeting", danger: true });
+  if (!ok) return false;
+  if (m.audio_path) await ctx.supabase.storage.from("meeting-audio").remove([m.audio_path]);
+  const { error } = await ctx.supabase.from("meetings").delete().eq("id", m.id);
+  if (error) { ctx.toast("Couldn't delete the meeting. Try again."); return false; }
+  ctx.toast("Meeting deleted");
+  return true;
 }
 
 /* ---------------- Meeting page ---------------- */
@@ -143,12 +205,9 @@ function drawActions(ctx) {
     await ctx.startRecord({ client, meeting: M, notes });
   });
   ctx.$("#mDel")?.addEventListener("click", async () => {
-    const ok = await ctx.confirmBox({ title: "Delete this meeting?", body: "The meeting details and transcript will be permanently deleted. Any Record of Advice started from it is kept.", confirmLabel: "Delete meeting", danger: true });
-    if (!ok) return;
-    if (M.audio_path) await ctx.supabase.storage.from("meeting-audio").remove([M.audio_path]);
-    const { error } = await ctx.supabase.from("meetings").delete().eq("id", M.id);
-    if (error) { ctx.toast("Couldn't delete the meeting. Try again."); return; }
-    ctx.toast("Meeting deleted"); ctx.go("meetings");
+    if (!(await deleteMeeting(ctx, M))) return;
+    if (listCache) listCache = listCache.filter((x) => x.id !== M.id);
+    ctx.go("meetings");
   });
 }
 
