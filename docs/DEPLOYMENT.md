@@ -60,7 +60,14 @@ Optional: without it, Meetings still accept transcript files and pasted text.
    supabase secrets set TRANSCRIBE_HOURLY_LIMIT=10
    supabase functions deploy transcribe
    ```
-3. Before recording real clients: add Deepgram to the privacy policy as a sub-processor (cross-border processing under POPIA) and confirm your consent wording.
+3. Deepgram is listed in the privacy policy as an operator (cross-border processing under POPIA). Confirm your consent wording before recording real clients.
+
+### 2c. Account deletion
+
+`delete-account` (Settings → Your data → Delete account) needs no extra secrets:
+```bash
+supabase functions deploy delete-account
+```
 
 ## 3. App config
 

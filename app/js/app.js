@@ -101,7 +101,7 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 function toast(m) { const t = $("#toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2600); }
 // Quilla-styled replacement for window.confirm(). Resolves true only when the
 // confirm button is pressed; Esc, Cancel and clicking the backdrop resolve false.
-function confirmBox({ title, body = "", confirmLabel = "Confirm", danger = false }) {
+function confirmBox({ title, body = "", confirmLabel = "Confirm", danger = false, notice = false }) { // notice: one OK button
   return new Promise((resolve) => {
     const d = document.createElement("dialog");
     d.className = "qdialog";
@@ -111,7 +111,7 @@ function confirmBox({ title, body = "", confirmLabel = "Confirm", danger = false
       <h2 id="qdT">${esc(title)}</h2>
       ${body ? `<p>${esc(body)}</p>` : ""}
       <div class="qd-actions">
-        <button type="button" class="btn btn-sm" data-v="0">Cancel</button>
+        ${notice ? "" : `<button type="button" class="btn btn-sm" data-v="0">Cancel</button>`}
         <button type="button" class="btn btn-sm ${danger ? "btn-danger" : "btn-primary"}" data-v="1">${esc(confirmLabel)}</button>
       </div></div>`;
     const done = (v) => { d.close(); d.remove(); resolve(v); };
@@ -119,7 +119,7 @@ function confirmBox({ title, body = "", confirmLabel = "Confirm", danger = false
     d.addEventListener("cancel", (e) => { e.preventDefault(); done(false); });
     document.body.appendChild(d);
     d.showModal();
-    d.querySelector('[data-v="0"]').focus();
+    d.querySelector(notice ? '[data-v="1"]' : '[data-v="0"]').focus();
   });
 }
 function log(text) { S.audit.push({ at: new Date().toISOString(), text }); }
@@ -165,9 +165,9 @@ async function ai(kind, input, signal) {
 /* ---------------- Persistence ---------------- */
 async function loadRecords() {
   const { data, error } = await supabase.from("records")
-    .select("id, client_name, advice_area, meeting_date, status, updated_at, client_id, archived_at")
+    .select("id, client_name, advice_area, meeting_date, status, updated_at, client_id, archived_at, record_versions(count)")
     .order("updated_at", { ascending: false }).limit(500);
-  if (!error) records = data || [];
+  if (!error) records = (data || []).map(({ record_versions: v, ...r }) => ({ ...r, sealed: (v?.[0]?.count || 0) > 0 }));
   setRecCount();
 }
 async function loadProfile() {
@@ -198,7 +198,7 @@ async function save() {
   else {
     dirty = false; $("#savestate").textContent = "Saved";
     const i = records.findIndex((r) => r.id === S.id);
-    const listRow = { id: S.id, client_name: row.client_name, advice_area: row.advice_area, meeting_date: row.meeting_date, status: row.status, client_id: row.client_id, updated_at: new Date().toISOString(), archived_at: i >= 0 ? records[i].archived_at || null : null };
+    const listRow = { id: S.id, client_name: row.client_name, advice_area: row.advice_area, meeting_date: row.meeting_date, status: row.status, client_id: row.client_id, updated_at: new Date().toISOString(), archived_at: i >= 0 ? records[i].archived_at || null : null, sealed: !!(i >= 0 && records[i].sealed) || !!S.signoff?.version };
     if (i >= 0) records[i] = listRow; else records.unshift(listRow);
     setRecCount();
   }
@@ -310,9 +310,46 @@ const ctx = {
   supabase, $, esc, crumbs, toast, confirmBox, fmtDate, fmtTime, today, SECTIONS, STATUS_LABEL,
   fnUrl: `${SUPABASE_URL}/functions/v1`, anonKey: SUPABASE_ANON_KEY,
   get session() { return session; }, get profile() { return profile; },
-  records: () => records, clients: () => clients, loadClients, saveProfile, seq: () => renderSeq,
+  records: () => records, clients: () => clients, loadClients, saveProfile, seq: () => renderSeq, downloadJson, fileSlug,
   go, openRecord: (id) => openRecord(id), startRecord, setLeaveGuard: (fn) => { leaveGuard = fn; },
 };
+
+/* ---------------- Your data (POPIA) ---------------- */
+// Save a JSON file in the browser. Nothing leaves the device except the reads from Supabase.
+function downloadJson(name, obj) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function fileSlug(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "export"; }
+async function exportAllData() {
+  const q = (t, cols = "*") => supabase.from(t).select(cols).limit(10000);
+  const [pr, cl, rc, vs, mt] = await Promise.all([
+    supabase.from("profiles").select("full_name, fsp_number, practice_name, template").eq("id", session.user.id).maybeSingle(),
+    q("clients"), q("records"), q("record_versions"),
+    q("meetings", "id, client_id, record_id, title, meeting_date, kind, attendees, consent_recording, consent_at, notes, transcript, transcript_source, created_at, updated_at"),
+  ]);
+  const err = [pr, cl, rc, vs, mt].find((x) => x.error);
+  if (err) { toast("Couldn't prepare your download. Try again."); return false; }
+  downloadJson(`quilla-data-${today()}.json`, {
+    exported_at: new Date().toISOString(), account: session.user.email,
+    about: "Everything held in your Quilla account. record_versions are the sealed, signed copies; sha256 is each version's fingerprint.",
+    profile: pr.data, clients: cl.data, records: rc.data, record_versions: vs.data, meetings: mt.data,
+  });
+  return true;
+}
+async function deleteAccount(password) {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-account`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_ANON_KEY },
+      body: JSON.stringify({ password }),
+    });
+    if (res.ok) return "ok";
+    return (await res.json().catch(() => ({}))).error || "error";
+  } catch { return "error"; }
+}
 
 /* ---------------- Account settings (popup) ---------------- */
 // A settings dialog with a section sidebar, opened from the account menu (or ?view=account).
@@ -320,7 +357,7 @@ function openSettings(section = "profile") {
   const d = document.createElement("dialog");
   d.className = "qdialog settings";
   d.setAttribute("aria-label", "Account settings");
-  const SECTIONS_NAV = [["profile", "Profile"], ["password", "Password"]];
+  const SECTIONS_NAV = [["profile", "Profile"], ["password", "Password"], ["data", "Your data"]];
   d.innerHTML = `<div class="st-wrap">
       <nav class="st-nav" aria-label="Settings sections">
         <h2>Settings</h2>
@@ -348,6 +385,35 @@ function openSettings(section = "profile") {
         if (ok) toast("Profile saved");
       });
       d.querySelector("#p_name").focus();
+    } else if (key === "data") {
+      pane().innerHTML = `<h3>Your data</h3><p class="note st-sub">Download everything, or close your account. POPIA gives you and your clients the right to both.</p>
+        <div class="st-block">
+          <h4>Download your data</h4>
+          <p class="note">Everything in your account as one file: your profile, clients, Records of Advice with every sealed version and its fingerprint, and meeting transcripts. For one client's data (for example when a client asks what you hold about them), use <b>Download client data</b> on their client page.</p>
+          <button class="btn btn-sm" id="dlAll">Download all my data</button>
+        </div>
+        <div class="st-block danger">
+          <h4>Delete your account</h4>
+          <p class="note">Permanently deletes your account and everything in it, including signed records and their sealed versions. FAIS requires you to keep records of advice for at least five years, so download your data and export PDFs of your signed records first. This can't be undone.</p>
+          <label class="declare"><input type="checkbox" id="delAck"><span>I've downloaded everything I need to keep.</span></label>
+          <label class="f" style="margin-top:12px">Your password<input type="password" id="delPw" autocomplete="current-password"></label>
+          <div class="cap-foot"><button class="btn btn-sm btn-danger" id="delAcct" disabled>Delete my account</button></div>
+          <div id="delMsg" aria-live="polite"></div>
+        </div>`;
+      const dl = d.querySelector("#dlAll");
+      dl.addEventListener("click", async () => { dl.disabled = true; dl.textContent = "Preparing…"; await exportAllData(); dl.disabled = false; dl.textContent = "Download all my data"; });
+      const ack = d.querySelector("#delAck"), pw = d.querySelector("#delPw"), del = d.querySelector("#delAcct"), msg = d.querySelector("#delMsg");
+      const ready = () => { del.disabled = !(ack.checked && pw.value); };
+      ack.addEventListener("change", ready); pw.addEventListener("input", ready);
+      del.addEventListener("click", async () => {
+        const ok = await confirmBox({ title: "Delete your account?", body: "Your account, clients, records, sealed versions and meetings will be permanently deleted. This can't be undone.", confirmLabel: "Delete everything", danger: true });
+        if (!ok) return;
+        del.disabled = true; del.textContent = "Deleting…"; msg.innerHTML = "";
+        const result = await deleteAccount(pw.value);
+        if (result === "ok") { close(); toast("Your account has been deleted"); await supabase.auth.signOut(); return; }
+        del.textContent = "Delete my account"; ready();
+        msg.innerHTML = `<div class="err">${result === "wrong_password" ? "That password isn't right." : "Couldn't delete your account. Try again, or email joshwilliamsza@icloud.com."}</div>`;
+      });
     } else {
       pane().innerHTML = `<h3>Password</h3><p class="note st-sub">Signed in as ${esc(session.user.email || "")}</p>
         <label class="f">New password<input type="password" id="p_pw1" autocomplete="new-password" minlength="8"></label>
@@ -391,6 +457,9 @@ let listTab = "all", listQuery = "", listSort = { key: "", dir: 1 }, listFilter 
 const picked = new Set();
 
 const isArchived = (r) => !!r.archived_at;
+// FAIS five-year retention: signed or sealed records can be archived but not deleted (the
+// database enforces this too, in the records delete policy).
+const isKept = (r) => r.status === "signed" || !!r.sealed;
 function inPeriod(date, p) {
   if (!p) return true;
   if (!date) return false;
@@ -521,7 +590,7 @@ function openRowMenu(btn) {
     { a: "open", label: "Open record", icon: IC.file },
     hasClient && { a: "client", label: "View client", icon: IC.user },
     { a: "arch", label: isArchived(r) ? "Unarchive" : "Archive", icon: IC.box },
-    "sep", { a: "del", label: "Delete", icon: IC.trash, danger: true },
+    !isKept(r) && "sep", !isKept(r) && { a: "del", label: "Delete", icon: IC.trash, danger: true },
   ], (a) => {
     if (a === "open") openRecord(r.id);
     else if (a === "client") go("client", r.client_id);
@@ -557,20 +626,27 @@ async function setArchived(ids, on) {
   toast(`${ids.length === 1 ? "Record" : `${ids.length} records`} ${on ? "archived" : "moved back to your records"}`);
 }
 async function deleteRecords(ids) {
+  const kept = records.filter((r) => ids.includes(r.id) && isKept(r)).length;
+  ids = ids.filter((id) => !isKept(records.find((r) => r.id === id) || {}));
+  if (!ids.length) {
+    await confirmBox({ title: kept === 1 ? "Signed records can't be deleted" : "These records can't be deleted", body: "FAIS requires you to keep records of advice for at least five years, so signed and sealed records can't be deleted. Archive them instead to move them out of your list.", confirmLabel: "OK", notice: true });
+    return;
+  }
   const one = ids.length === 1 ? records.find((r) => r.id === ids[0]) : null;
-  const signed = records.filter((r) => ids.includes(r.id) && r.status === "signed").length;
   const ok = await confirmBox({
     title: ids.length === 1 ? "Delete this record?" : `Delete ${ids.length} records?`,
-    body: `${one ? (one.client_name ? `The record for ${one.client_name}` : "This record") : "These records"}, including ${ids.length === 1 ? "its" : "their"} draft, sign-off and history, will be permanently deleted. This can't be undone.${signed ? ` ${signed === 1 && ids.length === 1 ? "It is" : `${signed} ${signed === 1 ? "is" : "are"}`} signed off: FAIS requires you to keep records of advice for at least five years, so consider archiving instead.` : ""}`,
+    body: `${one ? (one.client_name ? `The record for ${one.client_name}` : "This record") : "These records"}, including ${ids.length === 1 ? "its" : "their"} draft and history, will be permanently deleted. This can't be undone.${kept ? ` ${kept} signed record${kept === 1 ? " is" : "s are"} kept: FAIS requires you to keep them for five years.` : ""}`,
     confirmLabel: ids.length === 1 ? "Delete record" : `Delete ${ids.length} records`, danger: true,
   });
   if (!ok) return;
-  const { error } = await supabase.from("records").delete().in("id", ids);
+  const { data, error } = await supabase.from("records").delete().in("id", ids).select("id");
   if (error) { toast("Couldn't delete. Try again."); return; }
-  records = records.filter((r) => !ids.includes(r.id));
-  if (ids.includes(S.id)) S = blank();
-  ids.forEach((id) => picked.delete(id));
-  setRecCount(); renderList(); toast(ids.length === 1 ? "Record deleted" : `${ids.length} records deleted`);
+  const gone = (data || []).map((r) => r.id); // the database refuses signed/sealed ones
+  records = records.filter((r) => !gone.includes(r.id));
+  if (gone.includes(S.id)) S = blank();
+  gone.forEach((id) => picked.delete(id));
+  setRecCount(); renderList();
+  toast(gone.length === ids.length ? (gone.length === 1 ? "Record deleted" : `${gone.length} records deleted`) : `${gone.length} of ${ids.length} deleted. Signed records are kept.`);
 }
 
 /* ---------------- Global search (top bar, ⌘K) ---------------- */

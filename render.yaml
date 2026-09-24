@@ -21,9 +21,6 @@ services:
         source: /terms
         destination: /terms.html
       - type: rewrite
-        source: /coming-soon
-        destination: /coming-soon.html
-      - type: rewrite
         source: /how-it-works
         destination: /how-it-works.html
       - type: rewrite

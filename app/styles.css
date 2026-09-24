@@ -574,3 +574,11 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 @media (max-width:1000px){.ctiles2{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.ctiles2{grid-template-columns:minmax(0,1fr)}}
 .tpl-intro,.tpl-list{max-width:none}
+
+/* Settings → Your data */
+.st-block{border:1px solid var(--rule);border-radius:12px;padding:16px 18px;margin-top:14px}
+.st-block h4{margin:0 0 6px;font-size:15px;font-weight:600}
+.st-block .note{margin:0 0 12px;line-height:1.55}
+.st-block.danger{border-color:#F0C9C4;background:#FFFBFA}
+.st-block.danger h4{color:var(--red)}
+.st-block .declare{display:flex;gap:10px;align-items:flex-start;font-size:14px}

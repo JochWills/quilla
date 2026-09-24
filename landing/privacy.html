@@ -20,15 +20,59 @@
 </head>
 <body>
 <header class="nav"><div class="in"><a class="logo" href="/">Quilla</a><div class="nav-right"><a class="login" href="https://app.quilla.co.za/">Log in</a><a class="btn btn-primary btn-sm" href="https://app.quilla.co.za/">Get started</a></div></div></header>
-<main class="legal"><h1>Privacy policy</h1><p class="draft">Draft for review. This page must be reviewed by a South African attorney before Quilla launches publicly.</p>
-<p>Last updated: [date]</p>
-<h2>Who we are</h2><p>Quilla is operated by [registered company name], [registration number], [address]. Our Information Officer is [name], reachable at [email].</p>
-<h2>What we collect</h2><ul><li>Your account details: name, email address and FSP number.</li><li>The meeting notes, transcripts and Records of Advice you create. These contain personal information about your clients, which you control as the responsible party.</li><li>Basic usage data needed to run and secure the service.</li></ul>
-<h2>How we use it</h2><p>Only to provide Quilla: to draft, check and store your records, to secure your account, and to support you. We do not sell personal information or use your clients' information for marketing.</p>
-<h2>Operators and cross-border processing</h2><p>We use service providers to host data and to run the AI that drafts your records: [hosting provider, region] and [AI provider]. Some processing happens outside South Africa. [Describe the safeguards relied on under section 72 of POPIA.]</p>
-<h2>Retention</h2><p>[Retention periods, including how FAIS record-keeping obligations are supported and how you can delete records.]</p>
-<h2>Your rights</h2><p>You may request access to, correction of, or deletion of your personal information, object to processing, and lodge a complaint with the Information Regulator of South Africa.</p>
-<h2>Contact</h2><p>joshwilliamsza@icloud.com</p></main>
+<main class="legal"><h1>Privacy policy</h1><p class="draft">Draft for review. This page must be reviewed by a South African attorney before Quilla launches publicly. Items in [brackets] still need to be filled in.</p>
+<p>Last updated: 24 Sep 2026</p>
+
+<h2>Who we are</h2>
+<p>Quilla is operated by [registered company name], [registration number], [address]. Our Information Officer is [name], reachable at joshwilliamsza@icloud.com.</p>
+
+<h2>Our role and yours</h2>
+<p>For your own account details, Quilla is the responsible party under the Protection of Personal Information Act (POPIA). For your clients' personal information (the notes, transcripts and Records of Advice you create), you, the advisor or your practice, are the responsible party and Quilla is your operator: we process that information only on your instructions, to provide the service.</p>
+
+<h2>What we collect</h2>
+<ul>
+<li><b>Your account:</b> email address, password (stored only as a secure hash by our authentication provider), name, FSP number, practice name, and the section templates you set up.</li>
+<li><b>Your clients' information, as you enter it:</b> client names, your reference, email address, phone number and notes; meeting details, notes and transcripts; Records of Advice, including sign-off details, the audit trail and sealed signed copies. We never ask for ID numbers.</li>
+<li><b>Meeting recordings:</b> only for meetings where you confirm the client agreed to be recorded. The audio is kept only until it is transcribed (see Retention).</li>
+<li><b>Usage records:</b> when you use AI drafting or transcription, we record the type of request, its time and its size, to prevent abuse and manage cost. We never log the content of your notes, transcripts or records.</li>
+<li><b>Technical data:</b> our hosting providers keep standard request logs (such as IP address and browser type) to run and secure the service.</li>
+</ul>
+
+<h2>How we use it</h2>
+<p>Only to provide Quilla: to draft, check, store and export your records, to transcribe meetings you record or upload, to secure your account, and to support you. We do not sell personal information, use your clients' information for marketing, or use it to train AI models.</p>
+
+<h2>Cookies and browser storage</h2>
+<p>We don't use analytics or advertising cookies. The app keeps your sign-in session in your browser's storage. When you're signed in, a small cookie holding your email address lets our website show a "Dashboard" link instead of "Log in"; it is deleted when you sign out.</p>
+
+<h2>Service providers (operators) and where data is processed</h2>
+<ul>
+<li><b>Supabase</b> stores your account, clients, records and meetings, runs sign-in, and briefly stores meeting audio. Your data is hosted in Ireland (European Union).</li>
+<li><b>Anthropic</b> provides the AI (Claude) that drafts, checks and rewords records. When you use these features, the relevant notes or record text is sent to Anthropic in the United States. Under Anthropic's commercial terms, this data is not used to train its models.</li>
+<li><b>Deepgram</b> transcribes meeting audio when you record or upload a meeting the client agreed to have recorded. The audio is sent to Deepgram in the United States, and we ask Deepgram not to use it to improve its models.</li>
+<li><b>Render</b> hosts our website and the app's files. It doesn't store your records.</li>
+<li><b>Google Fonts, jsDelivr and cdnjs</b> deliver fonts and code libraries when pages load. They receive your IP address and browser details, but none of your records.</li>
+</ul>
+<p>Because some processing happens outside South Africa, we rely on section 72 of POPIA: [confirm with attorney: the European Union's data protection law provides an adequate level of protection, and our agreements with each provider bind them to protect personal information and use it only to provide their service].</p>
+
+<h2>How we protect it</h2>
+<p>Data is encrypted in transit and at rest. Each advisor's data is kept separate at the database level, so one account can never see another's. Signed records are sealed with a fingerprint so any later change can be detected, and meeting audio is deleted once it has been transcribed. Our AI and transcription keys are held only on our servers, never in your browser.</p>
+
+<h2>Retention</h2>
+<ul>
+<li><b>Records of Advice:</b> kept while your account is open. FAIS requires you to keep records of advice for at least five years, so Quilla doesn't let you delete a signed record; you can archive it instead. Unsigned drafts can be deleted at any time.</li>
+<li><b>Meeting audio:</b> deleted as soon as it is transcribed. If transcription fails, it stays until you retry or delete the meeting.</li>
+<li><b>Closing your account:</b> Settings → Your data → Delete account removes your account and everything in it straight away. Copies in our providers' backups are overwritten within [backup retention period]. Download your data first: keeping records for FAIS is your responsibility.</li>
+</ul>
+
+<h2>Your rights, and your clients' rights</h2>
+<p>You can access, correct or delete your personal information, object to processing, and complain to the <a href="https://inforegulator.org.za">Information Regulator of South Africa</a>. In the app, <b>Settings → Your data</b> downloads everything in your account, and each client's page has <b>Download client data</b> to help you answer a client's request for the information you hold about them.</p>
+<p>If one of your clients contacts us directly, we will refer them to you as the responsible party and help you respond.</p>
+
+<h2>Changes</h2>
+<p>If we change this policy in a way that matters, we'll tell you in the app or by email before the change takes effect.</p>
+
+<h2>Contact</h2>
+<p>joshwilliamsza@icloud.com</p></main>
 <footer class="footer"><div class="wrap in"><a class="logo" href="/" style="font-size:26px">Quilla</a><nav aria-label="Footer"><a href="/#product">Product</a><a href="/how-it-works">How it works</a><a href="/pricing">Pricing</a><a href="/faq">FAQ</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav><span class="copy">© 2026 Quilla. All rights reserved.</span></div></footer>
 <script src="/assets/site.js" defer></script>
 </body>

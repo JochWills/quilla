@@ -170,13 +170,34 @@ export async function renderClient(ctx, id) {
   if (!cached || (!same && !editing)) drawClient(ctx, id, c, meetings || []);
 }
 const pick = (c) => [c.name, c.reference, c.email, c.phone, c.notes];
+
+// POPIA access request: everything held about one client as a JSON file (details, their
+// Records of Advice with sealed versions, and meetings with transcripts).
+async function exportClient(ctx, id) {
+  const sb = ctx.supabase;
+  const [{ data: c, error: e1 }, { data: recs, error: e2 }, { data: meets, error: e3 }] = await Promise.all([
+    sb.from("clients").select("name, reference, email, phone, notes, created_at, updated_at").eq("id", id).maybeSingle(),
+    sb.from("records").select("id, client_name, advice_area, meeting_date, status, data, created_at, updated_at").eq("client_id", id),
+    sb.from("meetings").select("title, meeting_date, kind, attendees, consent_recording, consent_at, notes, transcript, transcript_source, created_at").eq("client_id", id),
+  ]);
+  if (e1 || e2 || e3 || !c) { ctx.toast("Couldn't prepare the download. Try again."); return; }
+  const ids = (recs || []).map((r) => r.id);
+  const { data: vers, error: e4 } = ids.length ? await sb.from("record_versions").select("record_id, version, signed_at, sha256, snapshot").in("record_id", ids) : { data: [] };
+  if (e4) { ctx.toast("Couldn't prepare the download. Try again."); return; }
+  ctx.downloadJson(`quilla-client-${ctx.fileSlug(c.name)}-${ctx.today()}.json`, {
+    exported_at: new Date().toISOString(),
+    about: "Everything this advisor holds about the client in Quilla. Sealed versions are the signed copies of each Record of Advice; sha256 is each version's fingerprint.",
+    client: c, records_of_advice: recs, sealed_versions: vers, meetings: meets,
+  });
+  ctx.toast("Client data downloaded");
+}
 function drawClient(ctx, id, c, meetings) {
   const { $, esc } = ctx;
   const recs = ctx.records().filter((r) => r.client_id === id);
   $("#content").innerHTML = `
     ${ctx.crumbs([["Clients", "clients"], [c.name]])}
     <div class="list-head"><div><h1>${esc(c.name)}</h1><div class="rec-sub">${esc([c.reference, c.email, c.phone].filter(Boolean).join(" · ") || "No contact details yet")}</div></div>
-      <div class="rec-actions"><button class="btn btn-sm" id="cNewMeeting">New meeting</button><button class="btn btn-primary btn-sm" id="cNewRecord">New record</button></div></div>
+      <div class="rec-actions"><button class="btn btn-sm" id="cExport" title="Everything held about this client, for a POPIA request">Download client data</button><button class="btn btn-sm" id="cNewMeeting">New meeting</button><button class="btn btn-primary btn-sm" id="cNewRecord">New record</button></div></div>
     <div class="sign-grid">
       <div>
         <section class="card" style="padding:22px">
@@ -199,6 +220,7 @@ function drawClient(ctx, id, c, meetings) {
   $("#content").dataset.clDirty = "0";
   $("#content").querySelectorAll("[id^='cl_']").forEach((el) => el.addEventListener("input", () => { $("#content").dataset.clDirty = "1"; }));
   $("#cNewRecord").addEventListener("click", () => ctx.startRecord({ client: c }));
+  $("#cExport").addEventListener("click", async (e) => { const b = e.currentTarget; b.disabled = true; await exportClient(ctx, c.id); b.disabled = false; });
   $("#cNewMeeting").addEventListener("click", () => ctx.go("meeting", { clientId: c.id }));
   $("#content").querySelectorAll("[data-rec]").forEach((b) => b.addEventListener("click", () => ctx.openRecord(b.dataset.rec)));
   $("#content").querySelectorAll("[data-meeting]").forEach((b) => b.addEventListener("click", () => ctx.go("meeting", b.dataset.meeting)));
