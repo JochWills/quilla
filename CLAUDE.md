@@ -34,7 +34,7 @@ Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.c
 - Severity colours: critical = red, important = amber, minor = teal, resolved = green.
 
 ## Common tasks
-- Change AI behaviour → edit `supabase/functions/ai/prompts.ts`, then `supabase functions deploy ai`. Test on the Claire Bennett example meeting (Source notes → "Load an example meeting").
+- Change AI behaviour → edit `supabase/functions/ai/prompts.ts`, then `supabase functions deploy ai`. Test on the example meetings (Source notes → "Load an example meeting" picks one of six at random from `EXAMPLES` in `app/js/app.js`; try a few).
 - Change the schema → add a new file in `supabase/migrations/` (never edit an applied migration), then `supabase db push`.
 - Change landing copy → `landing/index.html`. Push to `main`; Render redeploys only the site whose folder changed (`buildFilter`).
 

@@ -48,9 +48,12 @@ const SEV_ORDER = { critical: 0, important: 1, minor: 2 };
 const SEV_LABEL = { critical: "Critical", important: "Important", minor: "Minor" };
 const AREAS = ["Retirement planning", "Investment planning", "Risk cover", "Estate planning", "Tax-free savings", "Other"];
 
-const EXAMPLE = {
-  meta: { client: "Claire Bennett", ref: "CB-0921", area: "Retirement planning", date: "2026-09-21" },
-  notes: `Meeting 21 Sept 2026 with Claire Bennett (45), video call.
+// Example meetings for "Load an example meeting" / "Try an example meeting". One is picked at
+// random each time (never the same one twice in a row). Each has deliberate gaps so the checks
+// have something to flag. People and most product names are made up. `notes` gets the meeting
+// date as text; the meeting is dated a few days before today.
+const EXAMPLES = [
+  { client: "Claire Bennett", ref: "CB-0921", area: "Retirement planning", daysAgo: 3, notes: (d) => `Meeting ${d} with Claire Bennett (45), video call.
 
 Claire is a marketing director, annual income approx R1.8m. Married, two children (9 and 13). Husband is a self-employed architect, income irregular. Home loan approx R2.4m outstanding.
 
@@ -66,8 +69,79 @@ Looked at the Karoo Global Equity fund for the TFSA but chose Northgate Balanced
 
 Fees: ongoing advice fee 0.75%, initial fee 1% on TFSA contributions, 1.5% on the RA transfer. Platform fee 0.35%. Fund TIC approx 1.1%.
 
-Claire is happy to open the TFSA now. RA transfer on hold until the Liberty termination charge is confirmed.`,
-};
+Claire is happy to open the TFSA now. RA transfer on hold until the Liberty termination charge is confirmed.` },
+  { client: "Thabo Nkosi", ref: "TN-0114", area: "Risk cover", daysAgo: 2, notes: (d) => `Meeting ${d} with Thabo Nkosi (38), in person at his office.
+
+Thabo is an electrical engineer, gross income R1.1m a year, non-smoker, good health apart from mild asthma. Married to Naledi (35), who works part-time. Two children aged 4 and 7. Bond of R1.9m, car finance R310,000.
+
+Existing cover: employer group life 3x annual salary (about R3.3m) and group income protection 75% of salary to 65, both fall away if he leaves. No personal life cover. Naledi has none either.
+
+Needs analysis done together: to settle debts, fund schooling to university and replace income until the youngest is 23, the family needs about R8.5m of life cover. Shortfall of roughly R5.2m. No severe illness cover at all.
+
+Recommendation: new personal life policy with Harbour Life for R5.5m, level premium, and R1.5m severe illness cover. Premium quoted R1,960 pm. Also suggested Naledi take R2m life cover, she wants to think about it.
+
+Considered increasing the group cover instead, but it isn't portable if he changes jobs, so personal cover recommended.
+
+Thabo agreed to go ahead with his policy. Medical underwriting to follow; asthma may lead to a loading.` },
+  { client: "Pieter & Anna van der Merwe", ref: "VDM-0302", area: "Estate planning", daysAgo: 5, notes: (d) => `Meeting ${d} with Pieter (68) and Anna (66) van der Merwe at their home.
+
+Both retired. Pieter was a pharmacist. Living annuity of R5.4m drawing 6%, Anna's living annuity R1.2m drawing 4%. Paid-off house in Stellenbosch worth about R6.8m, holiday flat in Hermanus about R2.9m. Discretionary portfolio about R2.2m. Three adult children, one lives in the UK.
+
+Their wills were drawn up in 2004, before the Hermanus flat was bought and before the grandchildren. Married in community of property. Pieter wants the flat to go to the children jointly.
+
+Rough estate duty and executor's fee calculation on Pieter's death: liquidity need of about R1.4m (executor's fees, CGT on the flat, estate duty above the abatement). Cash in the estate would not cover it without selling the flat.
+
+Recommendation: update both wills with an attorney (referred to Botha & Partners). Keep the discretionary portfolio as the liquidity source rather than new life cover, given their ages and premium cost. Review living annuity beneficiary nominations, which still name only Anna and Pieter.
+
+Fees: our standard fees apply.
+
+They will book with the attorney this month and come back to update the nominations.` },
+  { client: "Aisha Patel", ref: "AP-0708", area: "Investment planning", daysAgo: 4, notes: (d) => `Meeting ${d} with Aisha Patel (29), video call.
+
+Aisha is a software developer, income R780,000 a year, single, renting. Received an inheritance of R600,000 from her grandmother, now sitting in a money market account. Already maxes her TFSA and contributes 10% to her employer's provident fund. Emergency fund of four months' expenses in place.
+
+Goal: grow the money over 10 years or more, possibly towards a property deposit in 5 to 7 years. Wants some money offshore.
+
+Risk profile: questionnaire completed, result aggressive. Understands a 30% fall in a bad year is possible and says she would not sell.
+
+Recommendation: invest R550,000 in a discretionary unit trust account on the Summit platform: 60% Summit Global Equity Feeder Fund, 40% Summit SA Equity Fund. Keep R50,000 of the inheritance in the money market account for the property deposit fund.
+
+Fees: initial advice fee 0.5%, ongoing advice fee 0.5% a year, platform fee 0.3%, fund TICs about 1.2% and 0.9%.
+
+Aisha agreed and signed the application forms. Funds to be transferred this week.` },
+  { client: "Lerato Mokoena", ref: "LM-0215", area: "Tax-free savings", daysAgo: 1, notes: (d) => `Meeting ${d} with Lerato Mokoena (26), in person.
+
+Lerato started her first permanent job in February as a junior auditor, take-home pay about R28,000 a month. Lives with a friend, shares rent. Student loan of R95,000 being repaid at R2,100 a month. No savings apart from R6,000 in her transactional account. Member of her employer's pension fund.
+
+Goals: build an emergency fund first, then start investing for the long term. Heard about tax-free savings accounts from colleagues.
+
+Recommendation: first build an emergency fund of three months' expenses (about R45,000) in a notice deposit, R2,500 a month. Then open a TFSA with a low-cost index fund at R1,500 a month, increasing when her salary goes up. Explained the R46,000 annual and R500,000 lifetime limits and the 40% penalty on over-contributions.
+
+Discussed paying the student loan faster, but the interest rate is low so investing is better.
+
+Lerato wants to check her budget over the weekend before deciding on the amounts.` },
+  { client: "Sipho Dlamini", ref: "SD-0419", area: "Retirement planning", daysAgo: 6, notes: (d) => `Meeting ${d} with Sipho Dlamini (64), in person. His wife Thandi (61) joined for part of the meeting.
+
+Sipho retires from his employer at the end of next month. Pension fund benefit about R4.2m after the two-pot changes; savings pot of R38,000 not yet withdrawn. Thandi still works as a teacher for another four years and has her own GEPF benefit. House paid off. No debt.
+
+Needs: R32,000 a month after tax to keep their lifestyle, rising with inflation.
+
+Options discussed: guaranteed life annuity (quote R26,500 a month, escalating 5%), living annuity, or a combination. Took one-third cash in part: R550,000 lump sum (first R550,000 tax-free) to pay for a new car and build a cash reserve.
+
+Recommendation: living annuity with the remaining R3.65m through Harbour Life, drawing 8.5% a year to meet the income need, invested in a balanced fund. Explained the risk of drawing down capital too fast and that we will review the drawdown every year.
+
+Fees: ongoing advice fee 0.75% a year, platform 0.3%, fund TIC about 1.1%.
+
+Sipho is comfortable with the living annuity. Paperwork to be completed once the fund confirms the final value.` },
+];
+let lastExample = -1;
+function pickExample() {
+  let i = Math.floor(Math.random() * EXAMPLES.length);
+  if (EXAMPLES.length > 1 && i === lastExample) i = (i + 1) % EXAMPLES.length;
+  lastExample = i;
+  const e = EXAMPLES[i], date = new Date(Date.now() - e.daysAgo * 86400000).toISOString().slice(0, 10);
+  return { meta: { client: e.client, ref: e.ref, area: e.area, date }, notes: e.notes(fmtDate(date)) };
+}
 
 /* ---------------- State ---------------- */
 const today = () => new Date().toISOString().slice(0, 10);
@@ -713,7 +787,7 @@ async function newRecord() {
   S = blank(); view = "record"; tab = "notes"; $("#savestate").textContent = "";
   renderApp(); window.scrollTo(0, 0); closeSide();
 }
-function loadExample() { Object.assign(S.meta, EXAMPLE.meta); S.notes = EXAMPLE.notes; dirty = true; tab = "notes"; renderApp(); scheduleSave(); }
+function loadExample() { const ex = pickExample(); Object.assign(S.meta, ex.meta); S.notes = ex.notes; dirty = true; tab = "notes"; renderApp(); scheduleSave(); }
 
 /* ---------------- Record shell ---------------- */
 function gapCounts() {
