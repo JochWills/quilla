@@ -1251,7 +1251,9 @@ function renderAuth() {
       <h1>Create your account</h1>
       <p class="note" style="font-size:14.5px">Set up sign-in for your practice.</p>
       <form id="authForm" novalidate>
-        <label class="f" for="a_email">Email address<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
+        <label class="f" for="a_name">Full name<input type="text" id="a_name" autocomplete="name" required maxlength="120" placeholder="As it should appear on your records"></label>
+        <label class="f" for="a_fsp" style="margin-top:12px"><span>FSP number <span class="opt">(yours or your practice's)</span></span><input type="text" id="a_fsp" inputmode="numeric" autocomplete="off" required maxlength="20" placeholder="e.g. 12345"></label>
+        <label class="f" for="a_email" style="margin-top:12px">Email address<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
         <label class="f" for="a_pw1" style="margin-top:12px">Password<input type="password" id="a_pw1" autocomplete="new-password" required minlength="8"></label>
         <label class="f" for="a_pw2" style="margin-top:12px">Confirm password<input type="password" id="a_pw2" autocomplete="new-password" required minlength="8"></label>
         <button class="btn btn-primary" id="authBtn" type="submit" style="width:100%;margin-top:14px">Create account</button>
@@ -1262,11 +1264,16 @@ function renderAuth() {
     $("#authForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const email = $("#a_email").value.trim(), p1 = $("#a_pw1").value, p2 = $("#a_pw2").value, msg = $("#authMsg"), btn = $("#authBtn");
+      const fullName = $("#a_name").value.trim().replace(/\s+/g, " "), fsp = $("#a_fsp").value.replace(/[\s-]/g, "").replace(/^fsp/i, "");
+      const bad = (id, text) => { msg.innerHTML = `<div class="err">${text}</div>`; $(id).focus(); };
+      if (fullName.length < 2) return bad("#a_name", "Enter your full name.");
+      if (!/^\d{1,20}$/.test(fsp)) return bad("#a_fsp", "Enter your FSP number, digits only.");
       if (!EMAIL_RE.test(email)) { msg.innerHTML = `<div class="err">Enter a valid email address.</div>`; return; }
       if (p1.length < 8) { msg.innerHTML = `<div class="err">Password must be at least 8 characters.</div>`; return; }
       if (p1 !== p2) { msg.innerHTML = `<div class="err">Passwords don't match.</div>`; return; }
       btn.disabled = true; btn.textContent = "Creating…";
-      const { data, error } = await supabase.auth.signUp({ email, password: p1, options: { emailRedirectTo: location.origin + "/" + location.search } });
+      // Name and FSP number go in as user metadata; the new-user trigger copies them into the profile.
+      const { data, error } = await supabase.auth.signUp({ email, password: p1, options: { data: { full_name: fullName, fsp_number: fsp }, emailRedirectTo: location.origin + "/" + location.search } });
       btn.disabled = false; btn.textContent = "Create account";
       if (error) { msg.innerHTML = `<div class="err">${error.message.includes("registered") ? "That email is already registered. Try signing in instead." : "Couldn't create the account. Try again."}</div>`; return; }
       if (!data.session) msg.innerHTML = `<div class="auth-ok">Check your inbox. We've sent a confirmation link to <b>${esc(email)}</b>.</div>`;

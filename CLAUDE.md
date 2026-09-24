@@ -39,7 +39,7 @@ Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.c
 - Change landing copy → `landing/index.html`. Push to `main`; Render redeploys only the site whose folder changed (`buildFilter`).
 
 ## Testing checklist before shipping app changes
-- Sign up with email + password, sign out, sign back in with the password.
+- Sign up with full name, FSP number, email + password → after confirming the email, Account settings shows that name and FSP number and new records are prefilled. Sign out, sign back in with the password.
 - Forgot password → reset link → set a new password → lands back in the app.
 - Account settings (popup from the account menu): save name/FSP number/practice name → new record's advisor/FSP fields are prefilled.
 - New record → Load example → Draft → 13 sections + flagged items appear.
