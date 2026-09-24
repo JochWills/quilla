@@ -1235,8 +1235,36 @@ function addPasswordToggles(root) {
     wrap.appendChild(b);
   });
 }
+// Password strength: a rough score from length and variety, marked down for common
+// passwords, repeats, sequences and the advisor's own name or email. Guidance only: the
+// only hard rule is 8+ characters (Supabase can also reject known-leaked passwords).
+const COMMON_PW = /^(password|passw0rd|qwerty|letmein|welcome|admin|iloveyou|monkey|dragon|sunshine|football|abc123|111111|123123|quilla|advisor|adviser|financial)/i;
+function passwordScore(pw, personal = []) {
+  if (pw.length < 8) return 0;
+  let score = 1;
+  if (pw.length >= 12) score++;
+  if (pw.length >= 16) score++;
+  const kinds = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((re) => re.test(pw)).length;
+  if (kinds >= 3) score++;
+  if (kinds === 4 && pw.length >= 10) score++;
+  const low = pw.toLowerCase();
+  if (COMMON_PW.test(low) || /(.)\1{3,}/.test(pw) || /(0123|1234|2345|3456|4567|5678|6789|abcd|qwer|asdf)/i.test(pw)) score -= 2;
+  if (personal.some((p) => p && p.length >= 3 && low.includes(p.toLowerCase()))) score -= 1;
+  return Math.max(1, Math.min(4, score));
+}
+function attachStrengthMeter(input, meter, personal) {
+  const LABELS = ["At least 8 characters.", "Weak: try a longer password", "Fair: add length or mix in numbers and symbols", "Good", "Strong password"];
+  const update = () => {
+    const pw = input.value, level = pw ? passwordScore(pw, personal()) : 0;
+    meter.dataset.level = String(level);
+    meter.querySelector(".pm-label").textContent = pw && pw.length < 8 ? `${8 - pw.length} more character${8 - pw.length === 1 ? "" : "s"} needed` : LABELS[level];
+  };
+  input.addEventListener("input", update);
+}
 function renderAuth() {
   renderAuthForm(); addPasswordToggles($("#authCard"));
+  const meter = $("#pwMeter");
+  if (meter) attachStrengthMeter($("#a_pw1"), meter, () => [$("#a_email")?.value.split("@")[0], ...($("#a_name")?.value.split(/\s+/) || []), session?.user?.email?.split("@")[0]]);
   const TITLES = { signup: "Create your account", forgot: "Reset password", reset: "Set password" };
   document.title = `${TITLES[authMode] || "Sign in"} · Quilla`;
 }
@@ -1248,7 +1276,8 @@ function renderAuthForm() {
       <h1>Set a new password</h1>
       <p class="auth-sub">Choose a new password for your account.</p>
       <form id="authForm" novalidate>
-        <label class="f" for="a_pw1">New password<input type="password" id="a_pw1" autocomplete="new-password" required minlength="8"><span class="hint">At least 8 characters.</span></label>
+        <label class="f" for="a_pw1">New password<input type="password" id="a_pw1" autocomplete="new-password" required minlength="8"></label>
+        <div class="pw-meter" id="pwMeter" data-level="0"><div class="pm-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></div><span class="pm-label" aria-live="polite">At least 8 characters.</span></div>
         <button class="btn btn-primary auth-btn" id="authBtn" type="submit">Set password</button>
       </form>
       <div id="authMsg" aria-live="polite"></div>`;
@@ -1276,7 +1305,8 @@ function renderAuthForm() {
           <label class="f" for="a_fsp">FSP number<input type="text" id="a_fsp" inputmode="numeric" autocomplete="off" required maxlength="20" placeholder="e.g. 12345"></label>
         </div>
         <label class="f" for="a_email">Work email<input type="email" id="a_email" autocomplete="email" required placeholder="you@yourpractice.co.za"></label>
-        <label class="f" for="a_pw1">Password<input type="password" id="a_pw1" autocomplete="new-password" required minlength="8"><span class="hint">At least 8 characters.</span></label>
+        <label class="f" for="a_pw1">Password<input type="password" id="a_pw1" autocomplete="new-password" required minlength="8"></label>
+        <div class="pw-meter" id="pwMeter" data-level="0"><div class="pm-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></div><span class="pm-label" aria-live="polite">At least 8 characters.</span></div>
         <button class="btn btn-primary auth-btn" id="authBtn" type="submit">Create account</button>
       </form>
       <div id="authMsg" aria-live="polite"></div>
