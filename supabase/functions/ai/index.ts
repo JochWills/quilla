@@ -77,8 +77,9 @@ Deno.serve(async (req) => {
     } else if (kind === "recheck") {
       prompt = recheckPrompt(input as never);
     } else if (kind === "improve") {
-      if (!SECTION_IDS.includes(String(input.section_id)) || typeof input.content !== "string") throw new Error("section");
-      prompt = improvePrompt(input as never, await loadTemplate());
+      if (!SECTION_IDS.includes(String(input.section_id)) || typeof input.content !== "string" || !input.content.trim()) throw new Error("section");
+      // Only the section's own text goes in: the notes are left out so the rewrite has nothing to add from.
+      prompt = improvePrompt({ section_id: String(input.section_id), content: String(input.content) }, await loadTemplate());
     } else {
       return json(req, 400, { error: "unknown_kind" });
     }
@@ -113,9 +114,25 @@ Deno.serve(async (req) => {
     input_tokens: data.usage?.input_tokens ?? null, output_tokens: data.usage?.output_tokens ?? null,
   });
 
+  let result: unknown;
   try {
-    return json(req, 200, { result: parseJson(text) });
+    result = parseJson(text);
   } catch {
     return json(req, 502, { error: "invalid_json" });
   }
+  // "Improve with AI" may only reword. Reject a rewrite that brings in a figure the text didn't have,
+  // or that grows far beyond it (a sign of added content).
+  if (kind === "improve") {
+    const before = String(input.content), after = String((result as { content?: unknown })?.content ?? "");
+    const known = new Set(figures(before));
+    if (figures(after).some((f) => !known.has(f)) || after.length > before.length * 1.6 + 120) {
+      return json(req, 422, { error: "added_facts" });
+    }
+  }
+  return json(req, 200, { result });
 });
+
+// Numbers in a text, normalised so "R1 500", "R1,500" and "R1500" match (and "09" matches "9").
+function figures(s: string): string[] {
+  return (s.match(/\d+(?:[ ,\u00a0]\d{3})*(?:\.\d+)?/g) ?? []).map((n) => n.replace(/[ ,\u00a0]/g, "").replace(/^0+(?=\d)/, ""));
+}

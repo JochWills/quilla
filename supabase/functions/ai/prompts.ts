@@ -63,7 +63,7 @@ export interface RecheckInput {
   resolved: { section_id: string; issue: string; state: "addressed" | "na"; note: string }[];
   replacement: { is_replacement: boolean; existing_product?: string };
 }
-export interface ImproveInput { section_id: string; content: string; notes: string }
+export interface ImproveInput { section_id: string; content: string }
 
 export function draftPrompt(i: DraftInput, t: Template = {}): string {
   const m = i.meta || {};
@@ -115,25 +115,23 @@ Reply with only JSON: {"gaps":[{"section_id":"one of: ${SECTION_IDS.join(", ")}"
 }
 
 export function improvePrompt(i: ImproveInput, t: Template = {}): string {
-  return `You are improving one section of a South African FAIS Record of Advice written by a financial advisor.
+  return `You are polishing the wording of one section of a South African FAIS Record of Advice written by a financial advisor. You are an editor, not an author: you change how the text reads, never what it says.
 
-Rewrite the section below in clear, formal, compliance-ready wording, in the third person.
+Rewrite the text below in clear, formal, compliance-ready wording, in the third person.
 Strict rules:
-- Keep every fact, amount and name that is in the current text.
-- Do NOT add any fact, amount, product, reason or disclosure that is not in the current text or explicitly in the meeting notes.
-- Do not give advice or opinions on suitability. Do not add headings.
-- If the current text says something the notes contradict, keep the current text.
+- The current text is your ONLY source. Every fact in your version must already be in it.
+- Keep every fact, amount, percentage, date, name and product exactly as written. Copy numbers exactly, in the same form (do not convert "R1.5m" to "R1,500,000" or "five" to "5").
+- Do NOT add anything: no new facts, figures, reasons, disclosures, explanations, client statements, periods ("per annum", "monthly") or conclusions, even if they seem implied or obvious.
+- Do NOT remove any fact, and do not fill in blanks, placeholders or "not captured" markers. Leave them as they are.
+- Do not give advice or opinions on suitability. Do not add headings, bullet points or sign-offs.
+- Fix grammar, spelling, clarity and tone. Spelling out an abbreviation already in the text ("pm" → "per month", "RA" → "retirement annuity") is fine. Keep it about the same length; a short note stays short.
+- If the text is already clear and formal, return it unchanged.
 
 Section: ${TITLE[i.section_id] || i.section_id}
-${t[i.section_id]?.guidance ? `The advisor's house style for this section (wording only, never a source of facts): ${t[i.section_id].guidance}\n` : ""}Current text:
+${t[i.section_id]?.guidance ? `The advisor's house style for this section (tone and wording only, never a source of facts): ${t[i.section_id].guidance}\n` : ""}Current text:
 """
 ${i.content.slice(0, LIMITS.section)}
 """
 
-Meeting notes (for reference only):
-"""
-${(i.notes || "").slice(0, LIMITS.notes)}
-"""
-
-Reply with only JSON: {"content":"the improved section text"}`;
+Reply with only JSON: {"content":"the reworded text"}`;
 }

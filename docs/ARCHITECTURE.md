@@ -42,7 +42,7 @@ Browser (advisor)
 |---|---|---|
 | `draft` | `{notes, meta:{client, area, date}}` | `{summary, replacement, sections:[{id,status,content,evidence}], gaps:[...]}` |
 | `recheck` | `{sections:{id: text}, resolved:[{section_id, issue, state, note}], replacement}` | `{gaps:[...]}` |
-| `improve` | `{section_id, content, notes}` | `{content}` |
+| `improve` | `{section_id, content}` (the notes are not sent, so a rewrite has nothing to add from) | `{content}`, or 422 `added_facts` if the rewrite contains a number the text didn't, or grows far longer |
 
 Errors: `{error: "unauthorized" | "rate_limited" | "bad_request" | "invalid_json" | "upstream_error"}`.
 

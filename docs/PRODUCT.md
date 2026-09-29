@@ -3,7 +3,7 @@
 ## The flow
 1. **Source notes** — advisor enters client name, reference (optional, never an ID number), meeting date, advice area, and pastes meeting notes or a transcript. Minimum ~25 words to draft.
 2. **Draft** — AI writes all 13 sections from the notes only. Each section gets a status (`captured`, `partial`, `not_captured`) and up to two verbatim evidence quotes from the notes.
-3. **Document review** — numbered section cards. Advisor edits text directly; "Improve with AI" rewrites wording without adding facts (undoable).
+3. **Document review** — numbered section cards. Advisor edits text directly; "Improve with AI" rewrites only the wording of what is already in that section (the notes aren't sent; a rewrite that adds a figure is rejected; undoable).
 4. **Compliance check** — flagged items beside the document, ranked:
    - **Critical**: the record isn't defensible without it (e.g. unconfirmed replacement penalty, missing reasons for the recommendation).
    - **Important**: should be recorded (e.g. how the risk profile was determined, conflicts not disclosed).

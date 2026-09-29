@@ -211,6 +211,7 @@ const STATUS_LABEL = { signed: "Signed off", draft: "Draft", notes: "Notes only"
 function errCopy(code) {
   if (code === "unauthorized") return "Your session expired. Sign in again, then retry.";
   if (code === "rate_limited") return "Too many requests in a short time. Wait a few minutes, then try again.";
+  if (code === "added_facts") return "The rewrite tried to add or change a figure, so Quilla discarded it. Your text is unchanged; edit it by hand or try again.";
   if (code === "invalid_json") return "The response came back incomplete. Try again; if it repeats, tidy up the notes first.";
   if (code === "bad_request") return "Quilla couldn't read that request. Check the notes describe an advice meeting.";
   return "The request was interrupted by a connection problem. Try again.";
@@ -1027,14 +1028,14 @@ async function improve(id) {
   msg.innerHTML = `<span class="pulse" style="display:inline-block;vertical-align:middle;margin-right:8px" aria-hidden="true"></span>Improving the wording… <button class="linkbtn" id="stopImp">Stop</button>`;
   $("#stopImp").addEventListener("click", () => busy && busy.abort());
   try {
-    const r = await ai("improve", { section_id: id, content: s.content, notes: S.notes }, busy.signal);
+    const r = await ai("improve", { section_id: id, content: s.content }, busy.signal);
     const text = typeof r?.content === "string" ? r.content.trim() : "";
     if (!text) throw { code: "invalid_json" };
     improveUndo[id] = s.content; s.content = text; s.edited = text !== s.original.trim();
     log(`Improved wording of "${SEC_TITLE[id]}" with AI`);
     const t = document.querySelector(`textarea[data-sec="${id}"]`); if (t) { t.value = text; autosize(t); }
     setPill(id); dirty = true; save();
-    msg.innerHTML = `Wording improved. Check it still says exactly what happened. <button class="linkbtn" id="undo-${id}">Undo</button>`;
+    msg.innerHTML = `Wording improved, using only what this section already said. Check it still reads right. <button class="linkbtn" id="undo-${id}">Undo</button>`;
     $("#undo-" + id).addEventListener("click", () => { s.content = improveUndo[id]; s.edited = s.content.trim() !== s.original.trim(); if (t) { t.value = s.content; autosize(t); } setPill(id); log(`Undid AI wording in "${SEC_TITLE[id]}"`); msg.textContent = "Change undone."; dirty = true; scheduleSave(); });
   } catch (e) { msg.textContent = e?.code === "cancelled" ? "" : errCopy(e?.code); }
   busy = null; SEC_IDS.forEach(syncImprove);
