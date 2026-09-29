@@ -1,15 +1,14 @@
 // Quilla `delete-account` edge function (Supabase, Deno).
 // POST { password } with the user's Supabase JWT. Re-checks the password (so a left-open
-// session can't delete an account), removes any meeting audio still in storage, then deletes
-// the auth user. Every table's user_id references auth.users ON DELETE CASCADE, so profile,
-// clients, records, sealed versions, meetings and usage rows go with it.
+// session can't delete an account), then deletes the auth user. Every table's user_id
+// references auth.users ON DELETE CASCADE, so profile, clients, records, sealed versions,
+// meetings and usage rows go with it.
 // The app tells the advisor to download their data first: FAIS record keeping is theirs.
 // Never logs personal data.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "https://app.quilla.co.za").split(",").map((s) => s.trim());
-const BUCKET = "meeting-audio";
 
 function cors(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin") ?? "";
@@ -43,20 +42,6 @@ Deno.serve(async (req) => {
   if (pwErr) return json(req, 403, { error: "wrong_password" });
 
   const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-
-  // Audio is normally deleted after transcription; clear anything left. Paths are
-  // <user id>/<meeting id>/<file>, so list the user's meeting folders, then their files.
-  const store = admin.storage.from(BUCKET);
-  const { data: folders, error: listErr } = await store.list(user.id, { limit: 1000 });
-  if (listErr) { console.error("storage_list_error"); return json(req, 500, { error: "server_error" }); }
-  for (const f of folders ?? []) {
-    const dir = `${user.id}/${f.name}`;
-    const { data: files } = await store.list(dir, { limit: 1000 });
-    const paths = (files ?? []).map((x) => `${dir}/${x.name}`);
-    if (!files?.length) paths.push(dir); // a loose file at the top level rather than a folder
-    const { error: rmErr } = await store.remove(paths);
-    if (rmErr) { console.error("storage_remove_error"); return json(req, 500, { error: "server_error" }); }
-  }
 
   const { error: delErr } = await admin.auth.admin.deleteUser(user.id);
   if (delErr) { console.error("delete_user_error", delErr.status); return json(req, 500, { error: "server_error" }); }

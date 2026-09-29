@@ -356,17 +356,15 @@ code.fp{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-si
 /* Meetings */
 .meet-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:24px;align-items:start}
 textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
-.rec-actions-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
-.rec-actions-row label.btn{cursor:pointer}
-.btn-rec .recdot{width:9px;height:9px}
-.recdot{width:10px;height:10px;border-radius:50%;background:#D13B2E;display:inline-block;flex:none}
-.recbar .recdot{animation:rec-pulse 1.4s ease-in-out infinite}
-.recdot.paused{background:var(--faint);animation:none}
-@keyframes rec-pulse{50%{opacity:.35}}
-.recbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;padding:12px 14px;border:1px solid var(--red-line);background:var(--red-bg);border-radius:10px}
-.recbar b{font-variant-numeric:tabular-nums;font-size:16px}
-.recbar .note{margin:0}
-.recbtns{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.meet-main{display:grid;gap:18px;min-width:0}
+.meet-main label.f{margin-bottom:12px}
+.meet-main .hint{font-size:13px;line-height:1.5}
+.sub-l{font-family:var(--serif);font-size:18px;font-weight:500;color:var(--ink)}
+.tr-empty,.tr-head{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.tr-empty>div:first-child{flex:1;min-width:220px}
+.tr-btns{display:flex;gap:8px;flex-wrap:wrap}
+.tr-btns label.btn{cursor:pointer}
+.tr-card textarea.transcript{min-height:260px}
 .speakers{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 10px;padding:10px 12px;background:var(--brand-tint);border-radius:8px}
 .speakers .note{margin:0}
 .spk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
@@ -397,8 +395,7 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 .why.bad{background:var(--red-bg);color:var(--red)} .why.warn{background:var(--amber-bg);color:var(--amber)} .why.ok{background:var(--green-bg);color:var(--green)}
 
 @media (max-width:1080px){.ctiles{grid-template-columns:repeat(2,minmax(0,1fr))}.meet-grid{grid-template-columns:minmax(0,1fr)}}
-@media (max-width:640px){.tpl-grid{grid-template-columns:minmax(0,1fr)}.recbtns{margin-left:0;width:100%}}
-@media (prefers-reduced-motion: reduce){.recbar .recdot{animation:none}}
+@media (max-width:640px){.tpl-grid{grid-template-columns:minmax(0,1fr)}}
 .qdialog-form{width:min(560px,calc(100vw - 32px))}
 .qdialog-form h2{margin-bottom:16px}
 .qdialog-form .err{margin-top:12px}

@@ -321,15 +321,15 @@ html{scroll-behavior:smooth}
 .m-check i{flex:none;width:16px;height:16px;border-radius:4px;border:1.5px solid var(--rule-strong);margin-top:1px;position:relative}
 .m-check.on i{background:var(--brand);border-color:var(--brand)}
 .m-check.on i::after{content:"";position:absolute;left:4px;top:2px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
-.m-rec{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border-radius:9px;background:#FBF4F3;border:1px solid #F1DCD8}
-.m-rec b{font-weight:600;font-size:13px;color:var(--red)}
-.m-rec time{font-variant-numeric:tabular-nums;color:var(--ink);font-weight:500;margin-left:auto}
-.rdot{width:9px;height:9px;border-radius:50%;background:#D8453A;box-shadow:0 0 0 4px rgba(216,69,58,.15);animation:hiwPulse 1.6s ease-in-out infinite}
-.wave{display:flex;align-items:center;gap:3px;height:22px;flex:1;min-width:0;overflow:hidden}
-.wave i{width:3px;border-radius:2px;background:#E1A39C;height:30%;animation:hiwWave 1.2s ease-in-out infinite}
-.wave i:nth-child(3n){height:80%;animation-delay:-.4s}.wave i:nth-child(3n+1){height:50%;animation-delay:-.8s}.wave i:nth-child(4n){height:95%;animation-delay:-.2s}
-@keyframes hiwPulse{50%{opacity:.45}}
-@keyframes hiwWave{50%{transform:scaleY(.45)}}
+.m-lbl{font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.m-notes{border:1px solid var(--rule-strong);border-radius:9px;padding:12px 14px;display:grid;gap:8px;background:#fff}
+.m-notes p{margin:0;font-size:13px;color:#40504E}
+.caret{display:inline-block;width:1.5px;height:14px;background:var(--brand);margin-left:2px;vertical-align:-2px;animation:hiwBlink 1.1s steps(1) infinite}
+@keyframes hiwBlink{50%{opacity:0}}
+.m-opt{font-weight:400;color:var(--faint)}
+.m-trx{padding:16px 20px;opacity:.92}
+.m-trx .m-head{margin-bottom:0}
+.m-trx .m-tx{margin-top:10px;padding-top:10px}
 .m-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .m-btn{display:inline-flex;align-items:center;padding:6px 12px;border:1px solid var(--rule-strong);border-radius:7px;font-size:12.5px;font-weight:500;background:#fff;white-space:nowrap}
 .m-btn.sm{padding:4px 10px;font-size:12px}

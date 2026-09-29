@@ -9,7 +9,7 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 import { buildPdf, buildDocx } from "./export.js";
 import { renderClients, renderClient } from "./clients.js";
-import { renderMeetings, renderMeeting, isRecording, flushMeeting } from "./meetings.js";
+import { renderMeetings, renderMeeting, flushMeeting } from "./meetings.js";
 import { renderTemplates } from "./templates.js";
 import { renderCompliance } from "./compliance.js";
 import { initControls, openPop } from "./controls.js";
@@ -337,10 +337,9 @@ async function followRoute() {
   }
 }
 addEventListener("popstate", () => { if (!$("#app").hidden) followRoute(); });
-// Leave the current screen: finish saves, protect a live recording and unsaved templates.
+// Leave the current screen: finish saves, protect unsaved templates.
 async function canLeave() {
   if (busy) return false;
-  if (isRecording()) { toast("Stop or discard the recording first."); return false; }
   if (leaveGuard?.() && !(await confirmBox({ title: "Leave without saving?", body: "Your changes on this screen haven't been saved.", confirmLabel: "Leave without saving", danger: true }))) return false;
   leaveGuard = null;
   if (dirty) await save();
@@ -364,7 +363,7 @@ async function startRecord({ client = null, meeting = null, notes = "" } = {}) {
   if (client) { S.clientId = client.id; S.meta.client = client.name; S.meta.ref = client.reference || ""; }
   if (meeting) { S.meetingId = meeting.id; if (meeting.meeting_date) S.meta.date = meeting.meeting_date; }
   S.notes = notes; tab = "notes"; $("#savestate").textContent = "";
-  if (meeting) log("Started from a recorded meeting");
+  if (meeting) log("Started from a logged meeting");
   renderApp();
   if (S.notes.trim()) {
     await save();
@@ -405,7 +404,7 @@ async function exportAllData() {
   const [pr, cl, rc, vs, mt] = await Promise.all([
     supabase.from("profiles").select("full_name, fsp_number, practice_name, template").eq("id", session.user.id).maybeSingle(),
     q("clients"), q("records"), q("record_versions"),
-    q("meetings", "id, client_id, record_id, title, meeting_date, kind, attendees, consent_recording, consent_at, notes, transcript, transcript_source, created_at, updated_at"),
+    q("meetings", "id, client_id, record_id, title, meeting_date, kind, attendees, notes, transcript, transcript_source, created_at, updated_at"),
   ]);
   const err = [pr, cl, rc, vs, mt].find((x) => x.error);
   if (err) { toast("Couldn't prepare your download. Try again."); return false; }
@@ -1286,7 +1285,7 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#acc
 $("#navAccount").addEventListener("click", () => { setAcctMenu(false); openSettings(); });
 initGlobalSearch();
 $("#signOut").addEventListener("click", async () => { if (dirty) await save(); await supabase.auth.signOut(); });
-window.addEventListener("beforeunload", (e) => { if (dirty) save(); if (dirty || isRecording() || leaveGuard?.()) e.preventDefault(); });
+window.addEventListener("beforeunload", (e) => { if (dirty) save(); if (dirty || leaveGuard?.()) e.preventDefault(); });
 
 /* ---------------- Auth ---------------- */
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

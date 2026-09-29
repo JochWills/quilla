@@ -23,7 +23,7 @@ function readFields(prefix) {
 /* ---------------- List ---------------- */
 // Screens draw at once from what's already loaded (clients load at sign-in; meetings are cached
 // from the last visit), then refresh in the background and repaint only if something changed.
-const MEETING_COLS = "id, title, meeting_date, kind, client_id, transcript_source, transcription_status, record_id";
+const MEETING_COLS = "id, title, meeting_date, kind, client_id, transcript_source, record_id";
 let meetingsCache = null;
 async function refreshMeetings(ctx) {
   const { data, error } = await ctx.supabase.from("meetings").select(MEETING_COLS).order("meeting_date", { ascending: false }).limit(2000);
@@ -178,7 +178,7 @@ async function exportClient(ctx, id) {
   const [{ data: c, error: e1 }, { data: recs, error: e2 }, { data: meets, error: e3 }] = await Promise.all([
     sb.from("clients").select("name, reference, email, phone, notes, created_at, updated_at").eq("id", id).maybeSingle(),
     sb.from("records").select("id, client_name, advice_area, meeting_date, status, data, created_at, updated_at").eq("client_id", id),
-    sb.from("meetings").select("title, meeting_date, kind, attendees, consent_recording, consent_at, notes, transcript, transcript_source, created_at").eq("client_id", id),
+    sb.from("meetings").select("title, meeting_date, kind, attendees, notes, transcript, transcript_source, created_at").eq("client_id", id),
   ]);
   if (e1 || e2 || e3 || !c) { ctx.toast("Couldn't prepare the download. Try again."); return; }
   const ids = (recs || []).map((r) => r.id);
@@ -235,9 +235,5 @@ function drawClient(ctx, id, c, meetings) {
 }
 
 export function transcriptLabel(m) {
-  if (m.transcription_status === "processing") return "Transcribing…";
-  if (m.transcription_status === "failed") return "Transcription failed";
-  if (m.transcription_status === "uploaded") return "Audio waiting";
-  if (m.transcript_source) return "Transcript";
-  return "Notes only";
+  return m.transcript_source ? "Transcript added" : "Notes";
 }

@@ -7,7 +7,7 @@
 - Signed-record integrity: each sign-off seals an immutable, versioned snapshot with a server-computed SHA-256 fingerprint; signed records are read-only and reopening creates a new version.
 - PDF and Word (.docx) export with practice branding, generated from the sealed version.
 - Clients: client list and pages; records and meetings link to a client.
-- Meetings: consent capture, in-browser recording or audio upload, Deepgram transcription (audio deleted afterwards), transcript files (.vtt/.srt/.txt/.docx), speaker naming, start a record from a meeting.
+- Meetings: advisor notes, optional transcript files (.vtt/.srt/.txt/.docx) or pasted transcripts, speaker naming, start a record from a meeting. (In-app recording and Deepgram transcription were built, then removed on 29 Sep 2026: transcription errors in figures and names were too risky for a compliance record.)
 - Templates: per-section guidance for the AI and standard wording.
 - Compliance dashboard: drafts needing attention, overrides, sealing status and retention dates.
 

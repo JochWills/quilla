@@ -1,33 +1,20 @@
-// Meetings: log a client meeting, record it in the browser or upload audio / a transcript
-// file, get a transcript, and start a Record of Advice from it.
-// Audio goes to the private `meeting-audio` bucket, is transcribed by the `transcribe` edge
-// function (Deepgram) and is then deleted: only the text is kept. Recording and audio
-// upload need the client's consent to be recorded first (the function checks it too).
+// Meetings: log a client meeting with your notes (and, optionally, a transcript from Teams,
+// Zoom or Google Meet, uploaded as a file or pasted), then start a Record of Advice from it.
+// Quilla doesn't record or transcribe audio.
 
 import { transcriptLabel } from "./clients.js";
 import { IC, initials, pageHead, tabsBar, bindTabs, setTabCounts, searchBox, sortTh, sortRows, bindSort, rowMenu, kebab } from "./ui.js";
 
 const KINDS = { in_person: "In person", video: "Video call", phone: "Phone call" };
-const MAX_AUDIO = 50 * 1024 * 1024; // matches the bucket limit
 const MAMMOTH = ["https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.12.3/mammoth.browser.min.js", "sha384-xqNXvcKbEqifokHcBnB0H32p+OQchhD/T/xJGWCMAW5fC0c0MBf9atO3weoPCT84"];
-const AUDIO_TYPES = { webm: "audio/webm", ogg: "audio/ogg", mp3: "audio/mpeg", m4a: "audio/mp4", mp4: "audio/mp4", aac: "audio/aac", wav: "audio/wav", flac: "audio/flac" };
-const ERR = {
-  not_configured: "Transcription isn't switched on yet. You can still upload a transcript file or paste your notes.",
-  consent_required: "Confirm the client agreed to the recording first.",
-  rate_limited: "Too many transcriptions in the last hour. Try again later.",
-  no_speech: "No speech was found in that audio.",
-  no_audio: "The audio couldn't be found. Record or upload it again.",
-  upstream_error: "The transcription service had a problem. Try again in a minute.",
-};
 
 let M = null;            // the meeting being edited
-let rec = null;          // in-progress recording {mr, stream, chunks, started, elapsed, paused, timer}
 let saveTimer = null;
 
 /* ---------------- List ---------------- */
 // The list draws at once from the last visit's rows, then refreshes in the background and
 // repaints only if something changed.
-const LIST_COLS = "id, title, meeting_date, kind, client_id, transcript_source, transcription_status, record_id, audio_path";
+const LIST_COLS = "id, title, meeting_date, kind, client_id, transcript_source, record_id";
 const KIND_IC = { in_person: IC.users, video: IC.video, phone: IC.phone };
 let listCache = null, mTab = "all", mQuery = "", mSort = { key: "", dir: 1 };
 
@@ -46,20 +33,18 @@ export async function renderMeetings(ctx) {
 const mCounts = () => ({ all: listCache.length, open: listCache.filter((m) => !m.record_id).length, started: listCache.filter((m) => m.record_id).length });
 const clientName = (ctx, id) => ctx.clients().find((c) => c.id === id)?.name || "";
 function transcriptPill(m) {
-  const label = transcriptLabel(m);
-  const tone = m.transcription_status === "failed" ? "bad" : m.transcription_status === "processing" || m.transcription_status === "uploaded" ? "draft" : m.transcript_source ? "signed" : "notes";
-  return `<span class="pill ${tone}">${tone === "signed" ? IC.check : tone === "bad" ? IC.bad : tone === "draft" ? IC.pen : IC.note}${label}</span>`;
+  return m.transcript_source ? `<span class="pill signed">${IC.check}${transcriptLabel(m)}</span>` : `<span class="pill notes">${IC.note}${transcriptLabel(m)}</span>`;
 }
 function drawMeetingsShell(ctx) {
   const { $, esc } = ctx, add = { id: "addMeeting", label: "New meeting" };
   if (!listCache.length) {
-    $("#content").innerHTML = `${pageHead("Meetings", "Record or upload a client meeting and turn it into a Record of Advice.", add)}
-      <div class="card empty"><h2>Record a meeting, get a Record of Advice</h2><p>Log a client meeting, record it here or upload the recording or transcript from Teams, Zoom or Google Meet. Quilla turns the transcript into a draft Record of Advice.</p><button class="btn btn-primary" id="addMeeting2">New meeting</button></div>`;
+    $("#content").innerHTML = `${pageHead("Meetings", "Log a client meeting with your notes and turn it into a Record of Advice.", add)}
+      <div class="card empty"><h2>Log a meeting, get a Record of Advice</h2><p>Add your notes from a client meeting and, if you have one, the transcript from Teams, Zoom or Google Meet. Quilla turns them into a draft Record of Advice.</p><button class="btn btn-primary" id="addMeeting2">New meeting</button></div>`;
   } else {
     const n = mCounts();
-    $("#content").innerHTML = `${pageHead("Meetings", "Record or upload a client meeting and turn it into a Record of Advice.", add)}
+    $("#content").innerHTML = `${pageHead("Meetings", "Log a client meeting with your notes and turn it into a Record of Advice.", add)}
       <div class="ltools">
-        ${tabsBar([["all", "All meetings", IC.meet, n.all], ["open", "No record yet", IC.mic, n.open], ["started", "Record started", IC.file, n.started]], mTab, "Filter meetings")}
+        ${tabsBar([["all", "All meetings", IC.meet, n.all], ["open", "No record yet", IC.pen, n.open], ["started", "Record started", IC.file, n.started]], mTab, "Filter meetings")}
         <div class="lsearch-wrap">${searchBox("mtSearch", "Search meetings…", esc(mQuery))}</div>
       </div>
       <div class="card ltable-card" id="mtTable"></div>`;
@@ -78,7 +63,7 @@ function drawMeetingsTable(ctx) {
   if (q) rows = rows.filter((m) => `${m.title || ""} ${KINDS[m.kind] || ""} ${clientName(ctx, m.client_id)} ${ctx.fmtDate(m.meeting_date)}`.toLowerCase().includes(q));
   rows = sortRows(rows, mSort, { title: (m) => (m.title || KINDS[m.kind] || "").toLowerCase(), client: (m) => clientName(ctx, m.client_id).toLowerCase() || "~", date: (m) => m.meeting_date || "" });
   wrap.innerHTML = rows.length ? `<table class="rtable ltable"><thead><tr>
-      ${sortTh(mSort, "title", "Meeting")}${sortTh(mSort, "client", "Client")}${sortTh(mSort, "date", "Date", "hide-sm")}<th class="hide-sm">Transcript</th><th class="hide-sm">Record of Advice</th><th class="act">Actions</th></tr></thead><tbody>
+      ${sortTh(mSort, "title", "Meeting")}${sortTh(mSort, "client", "Client")}${sortTh(mSort, "date", "Date", "hide-sm")}<th class="hide-sm">Source</th><th class="hide-sm">Record of Advice</th><th class="act">Actions</th></tr></thead><tbody>
     ${rows.map((m) => { const cn = clientName(ctx, m.client_id); return `<tr data-meeting="${esc(m.id)}" tabindex="0">
       <td><div class="who"><span class="wav ic" aria-hidden="true">${KIND_IC[m.kind] || IC.meet}</span><div class="who-t"><span class="who-n">${esc(m.title || KINDS[m.kind] || "Meeting")}</span><span class="who-none">${esc(KINDS[m.kind] || "Meeting")}</span></div></div></td>
       <td>${cn ? `<span class="icell"><span class="wav sm" aria-hidden="true">${esc(initials(cn))}</span>${esc(cn)}</span>` : `<span class="who-none">Not linked</span>`}</td>
@@ -112,11 +97,10 @@ function meetingMenu(ctx, btn) {
     }
   });
 }
-// Shared by the list menu and the meeting page. Audio (if any is still waiting) goes too.
+// Shared by the list menu and the meeting page.
 async function deleteMeeting(ctx, m) {
-  const ok = await ctx.confirmBox({ title: "Delete this meeting?", body: "The meeting details and transcript will be permanently deleted. Any Record of Advice started from it is kept.", confirmLabel: "Delete meeting", danger: true });
+  const ok = await ctx.confirmBox({ title: "Delete this meeting?", body: "The meeting details, notes and transcript will be permanently deleted. Any Record of Advice started from it is kept.", confirmLabel: "Delete meeting", danger: true });
   if (!ok) return false;
-  if (m.audio_path) await ctx.supabase.storage.from("meeting-audio").remove([m.audio_path]);
   const { error } = await ctx.supabase.from("meetings").delete().eq("id", m.id);
   if (error) { ctx.toast("Couldn't delete the meeting. Try again."); return false; }
   ctx.toast("Meeting deleted");
@@ -131,17 +115,15 @@ export async function renderMeeting(ctx, param) {
     if (!data) { ctx.toast("Couldn't find that meeting."); ctx.go("meetings"); return; }
     M = { ...data, _saved: true };
   } else {
-    M = { id: crypto.randomUUID(), client_id: param?.clientId || null, record_id: null, title: "", meeting_date: ctx.today(), kind: "in_person", attendees: "", consent_recording: false, consent_at: null, notes: "", transcript: "", transcript_source: "", audio_path: null, transcription_status: "none", transcription_error: null, duration_seconds: null, _saved: false };
+    M = { id: crypto.randomUUID(), client_id: param?.clientId || null, record_id: null, title: "", meeting_date: ctx.today(), kind: "in_person", attendees: "", notes: "", transcript: "", transcript_source: "", _saved: false };
   }
+  M._showTr = !!M.transcript.trim();
   draw(ctx);
 }
-
-export function isRecording() { return !!rec; }
 
 function draw(ctx) {
   const { $, esc } = ctx;
   const clients = ctx.clients();
-  const busy = M.transcription_status === "processing";
   $("#content").innerHTML = `
     ${ctx.crumbs([["Meetings", "meetings"], [M.title || "New meeting"]])}
     <div class="list-head"><div><h1>${esc(M.title || "New meeting")}</h1><div class="rec-sub">${esc([clients.find((c) => c.id === M.client_id)?.name, ctx.fmtDate(M.meeting_date), KINDS[M.kind]].filter(Boolean).join(" · "))}</div></div>
@@ -150,44 +132,72 @@ function draw(ctx) {
       <section class="card" style="padding:22px">
         <h3 class="sub">Meeting details</h3>
         <div class="form-grid">
-          <label class="f"><span>Client</span><select id="mt_client"><option value="">Not linked to a client</option>${clients.map((c) => `<option value="${esc(c.id)}" ${c.id === M.client_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+          <label class="f span2"><span>Client</span><select id="mt_client"><option value="">Not linked to a client</option>${clients.map((c) => `<option value="${esc(c.id)}" ${c.id === M.client_id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
           <label class="f"><span>Date</span><input type="date" id="mt_date" value="${esc(M.meeting_date || "")}"></label>
-          <label class="f"><span>Title <span class="opt">(optional)</span></span><input type="text" id="mt_title" placeholder="e.g. Retirement review" value="${esc(M.title)}"></label>
           <label class="f"><span>Type</span><select id="mt_kind">${Object.entries(KINDS).map(([k, v]) => `<option value="${k}" ${k === M.kind ? "selected" : ""}>${v}</option>`).join("")}</select></label>
+          <label class="f span2"><span>Title <span class="opt">(optional)</span></span><input type="text" id="mt_title" placeholder="e.g. Retirement review" value="${esc(M.title)}"></label>
           <label class="f span2"><span>Who attended <span class="opt">(optional)</span></span><input type="text" id="mt_att" placeholder="e.g. Claire and Tom Bennett, and you" value="${esc(M.attendees)}"></label>
-          <label class="f span2"><span>Your notes <span class="opt">(optional)</span></span><textarea id="mt_notes" rows="6" placeholder="Anything not in the recording: documents seen, what you checked afterwards.">${esc(M.notes)}</textarea></label>
         </div>
       </section>
-      <section class="card" style="padding:22px">
-        <h3 class="sub">Recording and transcript</h3>
-        <label class="declare" style="margin-top:0"><input type="checkbox" id="mt_consent" ${M.consent_recording ? "checked" : ""} ${busy || rec ? "disabled" : ""}><span>The client agreed to this meeting being recorded and transcribed.${M.consent_at ? ` <span class="note">Confirmed ${esc(ctx.fmtTime(M.consent_at))}.</span>` : ""}</span></label>
-        <p class="note" style="margin:8px 0 0">Tip: ask again once the recording starts, so their agreement is in the transcript too.</p>
-        <div id="recArea"></div>
-        <div id="trStatus" aria-live="polite"></div>
-        <label class="f" style="margin-top:16px" for="mt_tr">Transcript <span class="hint">Recorded, uploaded or pasted. Edit anything the transcription got wrong.</span></label>
-        <div id="speakers"></div>
-        <textarea id="mt_tr" class="transcript" placeholder="The transcript appears here. You can also paste one." ${busy ? "readonly" : ""}>${esc(M.transcript)}</textarea>
-        <div class="note count" id="trCount"></div>
-      </section>
+      <div class="meet-main">
+        <section class="card" style="padding:22px">
+          <label class="f" for="mt_notes"><span class="sub-l">Meeting notes</span><span class="hint">What the client told you, what you considered and recommended, the fees you disclosed, and what they decided. Quilla drafts only from what's here.</span></label>
+          <textarea id="mt_notes" class="transcript" placeholder="e.g. Claire (45), marketing director. Wants to retire at 60 on 70% of income…">${esc(M.notes)}</textarea>
+          <div class="note count" id="ntCount"></div>
+        </section>
+        <section class="card tr-card" style="padding:22px" id="trCard"></section>
+      </div>
     </div>`;
 
-  const bind = (id, key, ev = "input") => $("#" + id).addEventListener(ev, (e) => { M[key] = e.target.value; queueSave(ctx); if (key === "title" || key === "client_id") drawHead(ctx); });
-  bind("mt_title", "title"); bind("mt_date", "meeting_date", "change"); bind("mt_att", "attendees"); bind("mt_notes", "notes");
+  const bind = (id, key, ev = "input") => $("#" + id).addEventListener(ev, (e) => { M[key] = e.target.value; queueSave(ctx); if (key === "title" || key === "meeting_date") drawHead(ctx); });
+  bind("mt_title", "title"); bind("mt_date", "meeting_date", "change"); bind("mt_att", "attendees");
+  $("#mt_notes").addEventListener("input", (e) => { M.notes = e.target.value; updCount(ctx); drawActions(ctx); queueSave(ctx); });
   $("#mt_kind").addEventListener("change", (e) => { M.kind = e.target.value; queueSave(ctx); drawHead(ctx); });
   $("#mt_client").addEventListener("change", (e) => { M.client_id = e.target.value || null; queueSave(ctx); drawHead(ctx); });
-  $("#mt_consent").addEventListener("change", (e) => { M.consent_recording = e.target.checked; M.consent_at = e.target.checked ? new Date().toISOString() : null; saveNow(ctx).then(() => draw(ctx)); });
-  const tr = $("#mt_tr");
-  tr.addEventListener("input", () => { M.transcript = tr.value; if (!M.transcript_source && tr.value.trim()) M.transcript_source = "pasted"; if (!tr.value.trim() && M.transcript_source === "pasted") M.transcript_source = ""; updCount(ctx); drawSpeakers(ctx); drawActions(ctx); queueSave(ctx); });
-  updCount(ctx); drawSpeakers(ctx); drawRecArea(ctx); drawStatus(ctx); drawActions(ctx);
+  drawTranscript(ctx); updCount(ctx); drawActions(ctx);
 }
 function drawHead(ctx) {
   const h = document.querySelector(".list-head h1"), sub = document.querySelector(".list-head .rec-sub"); if (!h) return;
   h.textContent = M.title || "New meeting";
   sub.textContent = [ctx.clients().find((c) => c.id === M.client_id)?.name, ctx.fmtDate(M.meeting_date), KINDS[M.kind]].filter(Boolean).join(" · ");
 }
+const words = (t) => (t.trim() ? t.trim().split(/\s+/).length : 0);
 function updCount(ctx) {
-  const w = M.transcript.trim() ? M.transcript.trim().split(/\s+/).length : 0;
-  ctx.$("#trCount").textContent = w ? `${w.toLocaleString("en-ZA")} words${M.duration_seconds ? ` · ${Math.round(M.duration_seconds / 60)} min of audio` : ""}` : "";
+  const n = ctx.$("#ntCount"), t = ctx.$("#trCount");
+  if (n) n.textContent = words(M.notes) ? `${words(M.notes).toLocaleString("en-ZA")} words` : "";
+  if (t) t.textContent = words(M.transcript) ? `${words(M.transcript).toLocaleString("en-ZA")} words` : "";
+}
+
+/* ---------------- Transcript (optional) ---------------- */
+// Secondary to the notes: add one by uploading a file (Teams, Zoom, Meet, .srt, .txt, Word) or pasting.
+function drawTranscript(ctx) {
+  const el = ctx.$("#trCard"); if (!el) return;
+  const upload = (label) => `<label class="btn btn-sm"><input type="file" id="upText" accept=".vtt,.srt,.txt,.docx,text/plain,text/vtt" hidden>${label}</label>`;
+  if (!M._showTr) {
+    el.innerHTML = `<div class="tr-empty"><div><h3 class="sub" style="margin:0 0 4px">Transcript <span class="opt">(optional)</span></h3>
+        <p class="note" style="margin:0">Have a transcript from Teams, Zoom or Google Meet? Add it and Quilla drafts from it together with your notes.</p></div>
+      <div class="tr-btns">${upload("Upload transcript file")}<button class="btn btn-sm" id="trPaste">Paste a transcript</button></div></div>
+      <div id="trStatus" aria-live="polite"></div>`;
+    ctx.$("#trPaste").addEventListener("click", () => { M._showTr = true; drawTranscript(ctx); ctx.$("#mt_tr")?.focus(); });
+  } else {
+    el.innerHTML = `<div class="tr-head"><h3 class="sub" style="margin:0">Transcript <span class="opt">(optional)</span></h3>
+        <div class="tr-btns">${upload(M.transcript.trim() ? "Replace with a file" : "Upload transcript file")}<button class="btn btn-sm btn-quiet-danger" id="trRemove">Remove</button></div></div>
+      <p class="note" style="margin:6px 0 10px">Check names, amounts and percentages against your notes: transcripts often mishear them.</p>
+      <div id="trStatus" aria-live="polite"></div>
+      <div id="speakers"></div>
+      <textarea id="mt_tr" class="transcript" aria-label="Transcript" placeholder="Paste the transcript here.">${ctx.esc(M.transcript)}</textarea>
+      <div class="note count" id="trCount"></div>`;
+    const tr = ctx.$("#mt_tr");
+    tr.addEventListener("input", () => { M.transcript = tr.value; if (!M.transcript_source && tr.value.trim()) M.transcript_source = "pasted"; if (!tr.value.trim() && M.transcript_source === "pasted") M.transcript_source = ""; updCount(ctx); drawSpeakers(ctx); drawActions(ctx); queueSave(ctx); });
+    ctx.$("#trRemove").addEventListener("click", async () => {
+      if (M.transcript.trim() && !(await ctx.confirmBox({ title: "Remove the transcript?", body: "The transcript will be removed from this meeting. Your notes stay as they are.", confirmLabel: "Remove", danger: true }))) return;
+      Object.assign(M, { transcript: "", transcript_source: "", _showTr: false });
+      drawTranscript(ctx); drawActions(ctx); queueSave(ctx);
+    });
+    drawSpeakers(ctx);
+  }
+  ctx.$("#upText").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) importTranscript(ctx, f); });
+  updCount(ctx);
 }
 
 /* ---------------- Actions: start record, delete ---------------- */
@@ -195,12 +205,12 @@ function drawActions(ctx) {
   const el = ctx.$("#mActions"); if (!el) return;
   const hasText = M.transcript.trim() || M.notes.trim();
   el.innerHTML = `${M._saved ? `<button class="btn btn-sm btn-quiet-danger" id="mDel">Delete</button>` : ""}
-    ${M.record_id ? `<button class="btn btn-primary btn-sm" id="mOpenRec">Open Record of Advice</button>` : `<button class="btn btn-primary btn-sm" id="mStartRec" ${hasText && !rec && M.transcription_status !== "processing" ? "" : "disabled"}>Start Record of Advice</button>`}`;
+    ${M.record_id ? `<button class="btn btn-primary btn-sm" id="mOpenRec">Open Record of Advice</button>` : `<button class="btn btn-primary btn-sm" id="mStartRec" ${hasText ? "" : "disabled"}>Start Record of Advice</button>`}`;
   ctx.$("#mOpenRec")?.addEventListener("click", () => ctx.openRecord(M.record_id));
   ctx.$("#mStartRec")?.addEventListener("click", async () => {
     await saveNow(ctx);
     const client = ctx.clients().find((c) => c.id === M.client_id) || null;
-    const head = [`Meeting${M.title ? `: ${M.title}` : ""} (${KINDS[M.kind].toLowerCase()}), ${ctx.fmtDate(M.meeting_date)}.`, M.attendees ? `Attendees: ${M.attendees}.` : "", M.consent_recording ? "The client agreed to the meeting being recorded." : ""].filter(Boolean).join(" ");
+    const head = [`Meeting${M.title ? `: ${M.title}` : ""} (${KINDS[M.kind].toLowerCase()}), ${ctx.fmtDate(M.meeting_date)}.`, M.attendees ? `Attendees: ${M.attendees}.` : ""].filter(Boolean).join(" ");
     const notes = [head, M.notes.trim() ? `Advisor's notes:\n${M.notes.trim()}` : "", M.transcript.trim() ? `Transcript:\n${M.transcript.trim()}` : ""].filter(Boolean).join("\n\n");
     await ctx.startRecord({ client, meeting: M, notes });
   });
@@ -229,7 +239,7 @@ async function saveNow(ctx) {
 export async function flushMeeting(ctx) { if (saveTimer) await saveNow(ctx); }
 
 /* ---------------- Speakers ---------------- */
-// Transcripts label voices "Speaker 1", "Speaker 2"… Let the advisor name them once.
+// Transcripts often label voices "Speaker 1", "Speaker 2"… Let the advisor name them once.
 function drawSpeakers(ctx) {
   const el = ctx.$("#speakers"); if (!el) return;
   const labels = [...new Set([...M.transcript.matchAll(/^(Speaker \d+)(?= \[|:)/gm)].map((m) => m[1]))];
@@ -247,110 +257,9 @@ function drawSpeakers(ctx) {
   });
 }
 
-/* ---------------- Recording + uploads ---------------- */
-function drawRecArea(ctx) {
-  const el = ctx.$("#recArea"); if (!el) return;
-  const busy = M.transcription_status === "processing";
-  if (rec) {
-    el.innerHTML = `<div class="recbar" role="status"><span class="recdot ${rec.paused ? "paused" : ""}" aria-hidden="true"></span><b id="recTime">${fmtDur(elapsed())}</b><span class="note">${rec.paused ? "Paused" : "Recording. Keep this tab open."}</span>
-      <span class="recbtns"><button class="btn btn-xs" id="recPause">${rec.paused ? "Resume" : "Pause"}</button><button class="btn btn-xs btn-primary" id="recStop">Stop and transcribe</button><button class="btn btn-xs" id="recCancel">Discard</button></span></div>`;
-    ctx.$("#recPause").addEventListener("click", () => { if (rec.paused) { rec.mr.resume(); rec.started = Date.now(); } else { rec.mr.pause(); rec.elapsed += Date.now() - rec.started; } rec.paused = !rec.paused; drawRecArea(ctx); });
-    ctx.$("#recStop").addEventListener("click", () => stopRecording(ctx, true));
-    ctx.$("#recCancel").addEventListener("click", async () => { if (await ctx.confirmBox({ title: "Discard this recording?", body: "The audio recorded so far will be thrown away.", confirmLabel: "Discard", danger: true })) stopRecording(ctx, false); });
-    return;
-  }
-  const off = !M.consent_recording || busy;
-  el.innerHTML = `<div class="rec-actions-row">
-      <button class="btn btn-sm btn-rec" id="recStart" ${off ? "disabled" : ""}><span class="recdot" aria-hidden="true"></span>Record</button>
-      <label class="btn btn-sm ${off ? "is-disabled" : ""}"><input type="file" id="upAudio" accept="audio/*,.m4a,.mp3,.wav,.webm,.ogg,.flac" hidden ${off ? "disabled" : ""}>Upload audio</label>
-      <label class="btn btn-sm ${busy ? "is-disabled" : ""}"><input type="file" id="upText" accept=".vtt,.srt,.txt,.docx,text/plain,text/vtt" hidden ${busy ? "disabled" : ""}>Upload transcript file</label>
-    </div>
-    <p class="note" style="margin:8px 0 0">${M.consent_recording ? "Audio is transcribed, then deleted. Only the text is kept." : "Recording and audio upload unlock once you confirm the client agreed."} Transcript files: Teams, Zoom or Meet (.vtt), .srt, .txt or Word.</p>`;
-  ctx.$("#recStart").addEventListener("click", () => startRecording(ctx));
-  ctx.$("#upAudio").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) uploadAudio(ctx, f, "audio_upload", f.name); });
-  ctx.$("#upText").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) importTranscript(ctx, f); });
-}
-const elapsed = () => rec ? rec.elapsed + (rec.paused ? 0 : Date.now() - rec.started) : 0;
-const fmtDur = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 3600) ? Math.floor(s / 3600) + ":" : ""}${String(Math.floor(s / 60) % 60).padStart(Math.floor(s / 3600) ? 2 : 1, "0")}:${String(s % 60).padStart(2, "0")}`; };
-
-async function startRecording(ctx) {
-  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") { status(ctx, "err", "This browser can't record audio. Try Chrome, Edge or Safari, or upload a recording."); return; }
-  let stream;
-  try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); }
-  catch { status(ctx, "err", "Quilla couldn't use your microphone. Allow microphone access for this site in your browser settings, then try again."); return; }
-  if (!(await saveNow(ctx))) { stream.getTracks().forEach((t) => t.stop()); status(ctx, "err", "Couldn't save the meeting. Check your connection and try again."); return; }
-  const type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((t) => MediaRecorder.isTypeSupported?.(t)) || "";
-  const mr = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 32000 } : undefined);
-  rec = { mr, stream, chunks: [], started: Date.now(), elapsed: 0, paused: false };
-  mr.ondataavailable = (e) => { if (e.data.size) rec?.chunks.push(e.data); };
-  mr.start(10000);
-  rec.timer = setInterval(() => { const t = document.getElementById("recTime"); if (t) t.textContent = fmtDur(elapsed()); }, 500);
-  status(ctx, "", ""); draw(ctx);
-}
-async function stopRecording(ctx, keep) {
-  const r = rec; if (!r) return;
-  await new Promise((resolve) => { r.mr.onstop = resolve; r.mr.stop(); });
-  r.stream.getTracks().forEach((t) => t.stop()); clearInterval(r.timer); rec = null;
-  if (!keep) { draw(ctx); return; }
-  const mime = r.mr.mimeType || "audio/webm";
-  const blob = new Blob(r.chunks, { type: mime });
-  draw(ctx);
-  await uploadAudio(ctx, blob, "recording", `recording.${mime.includes("mp4") ? "m4a" : mime.includes("ogg") ? "ogg" : "webm"}`);
-}
-
-async function uploadAudio(ctx, blob, source, filename) {
-  if (!M.consent_recording) { status(ctx, "err", ERR.consent_required); return; }
-  if (blob.size > MAX_AUDIO) { status(ctx, "err", `That file is ${(blob.size / 1048576).toFixed(0)} MB. The limit is 50 MB. Try a compressed format such as .m4a or .mp3.`); return; }
-  const ext = (filename.split(".").pop() || "").toLowerCase();
-  const type = AUDIO_TYPES[ext] || (blob.type || "").split(";")[0];
-  if (!type || !Object.values(AUDIO_TYPES).includes(type)) { status(ctx, "err", "That file type isn't supported. Use .m4a, .mp3, .wav, .webm, .ogg or .flac."); return; }
-  if (!(await saveNow(ctx))) { status(ctx, "err", "Couldn't save the meeting. Check your connection and try again."); return; }
-  status(ctx, "work", "Uploading audio…");
-  const path = `${ctx.session.user.id}/${M.id}/${Date.now()}.${Object.keys(AUDIO_TYPES).find((k) => AUDIO_TYPES[k] === type) || "webm"}`;
-  const { error } = await ctx.supabase.storage.from("meeting-audio").upload(path, blob, { contentType: type, upsert: false });
-  if (error) { console.error(error); status(ctx, "err", "The upload didn't finish. Check your connection and try again."); return; }
-  if (M.audio_path && M.audio_path !== path) await ctx.supabase.storage.from("meeting-audio").remove([M.audio_path]);
-  Object.assign(M, { audio_path: path, transcript_source: source, transcription_status: "uploaded", transcription_error: null });
-  await saveNow(ctx);
-  await transcribe(ctx);
-}
-
-async function transcribe(ctx) {
-  const before = M.transcript.trim();
-  M.transcription_status = "processing"; draw(ctx);
-  status(ctx, "work", "Transcribing… a one-hour meeting usually takes under a minute.");
-  let body = {}, ok = false;
-  try {
-    const token = (await ctx.supabase.auth.getSession()).data.session?.access_token;
-    const res = await fetch(`${ctx.fnUrl}/transcribe`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: ctx.anonKey }, body: JSON.stringify({ meeting_id: M.id }) });
-    body = await res.json().catch(() => ({})); ok = res.ok;
-  } catch { body = { error: "network" }; }
-  if (ok) {
-    // The function stores the new transcript; keep any earlier text (e.g. part one of a meeting).
-    M.transcript = before ? `${before}\n\n${body.transcript}` : body.transcript;
-    Object.assign(M, { transcription_status: "done", audio_path: null, duration_seconds: (M.duration_seconds || 0) + (body.duration_seconds || 0) });
-    if (before) await saveNow(ctx);
-    draw(ctx); status(ctx, "ok", "Transcript ready. Name the speakers, check it over, then start the Record of Advice.");
-  } else {
-    const { data } = await ctx.supabase.from("meetings").select("transcription_status, audio_path").eq("id", M.id).maybeSingle();
-    Object.assign(M, { transcription_status: data?.transcription_status === "processing" ? "failed" : (data?.transcription_status || "failed"), audio_path: data?.audio_path ?? M.audio_path });
-    draw(ctx);
-    status(ctx, "err", ERR[body.error] || "Transcription didn't finish. Check your connection and try again.", !!M.audio_path && body.error !== "not_configured");
-  }
-}
-
-function status(ctx, kind, text, retry = false) {
+function status(ctx, kind, text) {
   const el = ctx.$("#trStatus"); if (!el) return;
-  M._status = { kind, text, retry };
-  el.innerHTML = !text ? "" : kind === "work" ? `<div class="working" role="status" style="margin-top:14px"><span class="pulse" aria-hidden="true"></span><b>${ctx.esc(text)}</b></div>`
-    : kind === "ok" ? `<p class="okmsg">${ctx.esc(text)}</p>`
-    : `<div class="err">${ctx.esc(text)}${retry ? ` <button class="linkbtn" id="trRetry">Try again</button>` : ""}</div>`;
-  ctx.$("#trRetry")?.addEventListener("click", () => transcribe(ctx));
-}
-function drawStatus(ctx) {
-  if (M._status) { status(ctx, M._status.kind, M._status.text, M._status.retry); return; }
-  if (M.transcription_status === "failed") status(ctx, "err", "The last transcription didn't finish.", !!M.audio_path);
-  else if (M.transcription_status === "uploaded" && M.audio_path) status(ctx, "err", "Audio is uploaded but not transcribed yet.", true);
+  el.innerHTML = !text ? "" : kind === "ok" ? `<p class="okmsg" style="margin:0 0 10px">${ctx.esc(text)}</p>` : `<div class="err" style="margin:10px 0">${ctx.esc(text)}</div>`;
 }
 
 /* ---------------- Transcript files ---------------- */
@@ -368,8 +277,8 @@ async function importTranscript(ctx, file) {
   text = text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
   if (!text) { status(ctx, "err", "That file doesn't contain any text."); return; }
   if (M.transcript.trim() && !(await ctx.confirmBox({ title: "Replace the transcript?", body: "The transcript already on this meeting will be replaced with the file's text.", confirmLabel: "Replace" }))) return;
-  Object.assign(M, { transcript: text, transcript_source: "file" });
-  draw(ctx); await saveNow(ctx); status(ctx, "ok", `Imported ${file.name}. Check it over, then start the Record of Advice.`);
+  Object.assign(M, { transcript: text, transcript_source: "file", _showTr: true });
+  drawTranscript(ctx); drawActions(ctx); await saveNow(ctx); status(ctx, "ok", `Imported ${file.name}. Check it over, then start the Record of Advice.`);
 }
 // WebVTT / SRT → "Speaker: text" lines, merging consecutive cues by the same speaker.
 function parseCues(raw) {
