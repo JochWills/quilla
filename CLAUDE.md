@@ -53,7 +53,7 @@ Two static sites on Render (`landing/` → quilla.co.za, `app/` → app.quilla.c
 - Open a client, then one of their records → browser Back (or swipe back) returns to the client, then to the list; reloading on a client or record reopens it.
 - ⌘K (Ctrl K) focuses the top search; typing a client or record name lists both, Enter opens the first.
 - Clients: add a client → New record from their page prefills name/reference; the record appears on the client page.
-- Meetings: add notes → Start Record of Advice → the draft uses the notes. Add a transcript (upload a Teams .vtt, or Paste a transcript) → name the speakers → the draft uses notes and transcript. Remove the transcript → notes stay.
+- Meetings: add notes → Start Record of Advice → the draft uses the notes. Add a transcript (upload a Teams .vtt, or Paste a transcript) → the notes fold into a summary bar (click it to switch back; the transcript folds instead) → name the speakers → the draft uses notes and transcript. Remove the transcript → notes stay.
 - Templates: add guidance and standard wording to Fees → redraft → the standard wording is appended and marked.
 - Compliance: drafts with open critical items and records signed with an override are listed.
 - Settings → Your data: Download all my data gives one JSON file; a client page's Download client data gives just that client. Delete account needs the tick box and password, then signs out; the account and its rows are gone. A signed record has no Delete in its ⋯ menu.

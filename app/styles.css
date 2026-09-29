@@ -354,7 +354,7 @@ code.fp{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-si
 .client-link .linkbtn{font-size:13.5px;padding-bottom:10px}
 
 /* Meetings */
-.meet-grid{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:24px;align-items:start}
+.meet-grid{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:24px;align-items:start}
 textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 .meet-main{display:grid;gap:18px;min-width:0}
 .meet-main label.f{margin-bottom:12px}
@@ -365,6 +365,17 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 .tr-btns{display:flex;gap:8px;flex-wrap:wrap}
 .tr-btns label.btn{cursor:pointer}
 .tr-card textarea.transcript{min-height:260px}
+.nt-card,.tr-card{padding:22px}
+.nt-card.folded,.tr-card.folded{padding:0;overflow:hidden}
+.fold{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:16px;width:100%;padding:16px 22px;background:none;border:0;text-align:left;cursor:pointer;color:var(--ink);font:inherit}
+.fold:hover{background:var(--brand-tint)}
+.fold-t{display:flex;flex-direction:column;gap:1px;white-space:nowrap}
+.fold-t b{font-family:var(--serif);font-size:16.5px;font-weight:500}
+.fold-t .note{margin:0;font-size:12.5px}
+.fold-p{color:var(--muted);font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fold-a{display:inline-flex;align-items:center;gap:4px;font-size:13.5px;font-weight:500;color:var(--brand);white-space:nowrap}
+.fold-a svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media (max-width:640px){.fold{grid-template-columns:minmax(0,1fr) auto}.fold-p{display:none}}
 .speakers{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 10px;padding:10px 12px;background:var(--brand-tint);border-radius:8px}
 .speakers .note{margin:0}
 .spk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}

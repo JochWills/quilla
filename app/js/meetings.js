@@ -117,7 +117,8 @@ export async function renderMeeting(ctx, param) {
   } else {
     M = { id: crypto.randomUUID(), client_id: param?.clientId || null, record_id: null, title: "", meeting_date: ctx.today(), kind: "in_person", attendees: "", notes: "", transcript: "", transcript_source: "", _saved: false };
   }
-  M._showTr = !!M.transcript.trim();
+  // One of notes / transcript is open at a time; the other folds to a summary bar.
+  M._open = M.transcript.trim() && !M.notes.trim() ? "transcript" : "notes";
   draw(ctx);
 }
 
@@ -140,21 +141,16 @@ function draw(ctx) {
         </div>
       </section>
       <div class="meet-main">
-        <section class="card" style="padding:22px">
-          <label class="f" for="mt_notes"><span class="sub-l">Meeting notes</span><span class="hint">What the client told you, what you considered and recommended, the fees you disclosed, and what they decided. Quilla drafts only from what's here.</span></label>
-          <textarea id="mt_notes" class="transcript" placeholder="e.g. Claire (45), marketing director. Wants to retire at 60 on 70% of income…">${esc(M.notes)}</textarea>
-          <div class="note count" id="ntCount"></div>
-        </section>
-        <section class="card tr-card" style="padding:22px" id="trCard"></section>
+        <section class="card nt-card" id="ntCard"></section>
+        <section class="card tr-card" id="trCard"></section>
       </div>
     </div>`;
 
   const bind = (id, key, ev = "input") => $("#" + id).addEventListener(ev, (e) => { M[key] = e.target.value; queueSave(ctx); if (key === "title" || key === "meeting_date") drawHead(ctx); });
   bind("mt_title", "title"); bind("mt_date", "meeting_date", "change"); bind("mt_att", "attendees");
-  $("#mt_notes").addEventListener("input", (e) => { M.notes = e.target.value; updCount(ctx); drawActions(ctx); queueSave(ctx); });
   $("#mt_kind").addEventListener("change", (e) => { M.kind = e.target.value; queueSave(ctx); drawHead(ctx); });
   $("#mt_client").addEventListener("change", (e) => { M.client_id = e.target.value || null; queueSave(ctx); drawHead(ctx); });
-  drawTranscript(ctx); updCount(ctx); drawActions(ctx);
+  drawPanels(ctx); drawActions(ctx);
 }
 function drawHead(ctx) {
   const h = document.querySelector(".list-head h1"), sub = document.querySelector(".list-head .rec-sub"); if (!h) return;
@@ -168,20 +164,55 @@ function updCount(ctx) {
   if (t) t.textContent = words(M.transcript) ? `${words(M.transcript).toLocaleString("en-ZA")} words` : "";
 }
 
-/* ---------------- Transcript (optional) ---------------- */
-// Secondary to the notes: add one by uploading a file (Teams, Zoom, Meet, .srt, .txt, Word) or pasting.
+/* ---------------- Notes and transcript ---------------- */
+// Notes are the main input; a transcript (uploaded file or pasted) is optional. Only one is
+// open at a time: opening one folds the other into a one-line summary you can click to switch.
+function drawPanels(ctx) { drawNotes(ctx); drawTranscript(ctx); updCount(ctx); }
+function openPanel(ctx, which, focus = true) {
+  if (M._open === which) return;
+  M._open = which; drawPanels(ctx);
+  if (focus) ctx.$(which === "notes" ? "#mt_notes" : "#mt_tr")?.focus();
+}
+const preview = (t) => { const one = t.trim().replace(/\s+/g, " "); return one.length > 110 ? one.slice(0, 110) + "…" : one; };
+function foldBar(ctx, id, title, detail, text, action) {
+  return `<button type="button" class="fold" id="${id}" aria-expanded="false">
+      <span class="fold-t"><b>${title}</b>${detail ? `<span class="note">${ctx.esc(detail)}</span>` : ""}</span>
+      ${text ? `<span class="fold-p">${ctx.esc(preview(text))}</span>` : ""}
+      <span class="fold-a">${action}${IC.down}</span></button>`;
+}
+function drawNotes(ctx) {
+  const el = ctx.$("#ntCard"); if (!el) return;
+  el.classList.toggle("folded", M._open !== "notes");
+  if (M._open !== "notes") {
+    const n = words(M.notes);
+    el.innerHTML = foldBar(ctx, "ntOpen", "Meeting notes", n ? `${n.toLocaleString("en-ZA")} words` : "None yet", M.notes, n ? "Show notes" : "Add notes");
+    ctx.$("#ntOpen").addEventListener("click", () => openPanel(ctx, "notes"));
+    return;
+  }
+  el.innerHTML = `<label class="f" for="mt_notes"><span class="sub-l">Meeting notes</span><span class="hint">What the client told you, what you considered and recommended, the fees you disclosed, and what they decided. Quilla drafts only from what's here.</span></label>
+    <textarea id="mt_notes" class="transcript" placeholder="e.g. Claire (45), marketing director. Wants to retire at 60 on 70% of income…">${ctx.esc(M.notes)}</textarea>
+    <div class="note count" id="ntCount"></div>`;
+  ctx.$("#mt_notes").addEventListener("input", (e) => { M.notes = e.target.value; updCount(ctx); drawActions(ctx); queueSave(ctx); });
+}
 function drawTranscript(ctx) {
   const el = ctx.$("#trCard"); if (!el) return;
+  const has = !!M.transcript.trim(), open = M._open === "transcript";
+  el.classList.toggle("folded", has && !open);
   const upload = (label) => `<label class="btn btn-sm"><input type="file" id="upText" accept=".vtt,.srt,.txt,.docx,text/plain,text/vtt" hidden>${label}</label>`;
-  if (!M._showTr) {
+  if (has && !open) {
+    el.innerHTML = foldBar(ctx, "trOpen", "Transcript", `${words(M.transcript).toLocaleString("en-ZA")} words · ${M.transcript_source === "file" ? "from a file" : "pasted"}`, M.transcript, "Show transcript");
+    ctx.$("#trOpen").addEventListener("click", () => openPanel(ctx, "transcript"));
+    return;
+  }
+  if (!open) {
     el.innerHTML = `<div class="tr-empty"><div><h3 class="sub" style="margin:0 0 4px">Transcript <span class="opt">(optional)</span></h3>
         <p class="note" style="margin:0">Have a transcript from Teams, Zoom or Google Meet? Add it and Quilla drafts from it together with your notes.</p></div>
       <div class="tr-btns">${upload("Upload transcript file")}<button class="btn btn-sm" id="trPaste">Paste a transcript</button></div></div>
       <div id="trStatus" aria-live="polite"></div>`;
-    ctx.$("#trPaste").addEventListener("click", () => { M._showTr = true; drawTranscript(ctx); ctx.$("#mt_tr")?.focus(); });
+    ctx.$("#trPaste").addEventListener("click", () => openPanel(ctx, "transcript"));
   } else {
-    el.innerHTML = `<div class="tr-head"><h3 class="sub" style="margin:0">Transcript <span class="opt">(optional)</span></h3>
-        <div class="tr-btns">${upload(M.transcript.trim() ? "Replace with a file" : "Upload transcript file")}<button class="btn btn-sm btn-quiet-danger" id="trRemove">Remove</button></div></div>
+    el.innerHTML = `<div class="tr-head"><h3 class="sub-l" style="margin:0">Transcript <span class="opt">(optional)</span></h3>
+        <div class="tr-btns">${upload(has ? "Replace with a file" : "Upload transcript file")}<button class="btn btn-sm btn-quiet-danger" id="trRemove">Remove</button></div></div>
       <p class="note" style="margin:6px 0 10px">Check names, amounts and percentages against your notes: transcripts often mishear them.</p>
       <div id="trStatus" aria-live="polite"></div>
       <div id="speakers"></div>
@@ -190,14 +221,13 @@ function drawTranscript(ctx) {
     const tr = ctx.$("#mt_tr");
     tr.addEventListener("input", () => { M.transcript = tr.value; if (!M.transcript_source && tr.value.trim()) M.transcript_source = "pasted"; if (!tr.value.trim() && M.transcript_source === "pasted") M.transcript_source = ""; updCount(ctx); drawSpeakers(ctx); drawActions(ctx); queueSave(ctx); });
     ctx.$("#trRemove").addEventListener("click", async () => {
-      if (M.transcript.trim() && !(await ctx.confirmBox({ title: "Remove the transcript?", body: "The transcript will be removed from this meeting. Your notes stay as they are.", confirmLabel: "Remove", danger: true }))) return;
-      Object.assign(M, { transcript: "", transcript_source: "", _showTr: false });
-      drawTranscript(ctx); drawActions(ctx); queueSave(ctx);
+      if (has && !(await ctx.confirmBox({ title: "Remove the transcript?", body: "The transcript will be removed from this meeting. Your notes stay as they are.", confirmLabel: "Remove", danger: true }))) return;
+      Object.assign(M, { transcript: "", transcript_source: "", _open: "notes" });
+      drawPanels(ctx); drawActions(ctx); queueSave(ctx);
     });
     drawSpeakers(ctx);
   }
   ctx.$("#upText").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) importTranscript(ctx, f); });
-  updCount(ctx);
 }
 
 /* ---------------- Actions: start record, delete ---------------- */
@@ -277,8 +307,8 @@ async function importTranscript(ctx, file) {
   text = text.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim();
   if (!text) { status(ctx, "err", "That file doesn't contain any text."); return; }
   if (M.transcript.trim() && !(await ctx.confirmBox({ title: "Replace the transcript?", body: "The transcript already on this meeting will be replaced with the file's text.", confirmLabel: "Replace" }))) return;
-  Object.assign(M, { transcript: text, transcript_source: "file", _showTr: true });
-  drawTranscript(ctx); drawActions(ctx); await saveNow(ctx); status(ctx, "ok", `Imported ${file.name}. Check it over, then start the Record of Advice.`);
+  Object.assign(M, { transcript: text, transcript_source: "file", _open: "transcript" });
+  drawPanels(ctx); drawActions(ctx); await saveNow(ctx); status(ctx, "ok", `Imported ${file.name}. Check it over, then start the Record of Advice.`);
 }
 // WebVTT / SRT → "Speaker: text" lines, merging consecutive cues by the same speaker.
 function parseCues(raw) {
