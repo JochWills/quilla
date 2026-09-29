@@ -414,9 +414,9 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 .f .opt{font-weight:400;color:var(--faint);font-size:12.5px}
 
 /* Account settings popup (openSettings in app.js) */
-.qdialog.settings{width:min(760px,calc(100vw - 32px));padding:0;overflow:hidden}
+.qdialog.settings{width:min(920px,calc(100vw - 32px));padding:0;overflow:hidden}
 /* Fixed size for every section; a longer section scrolls inside the pane. */
-.st-wrap{display:grid;grid-template-columns:200px minmax(0,1fr);height:min(620px,calc(100dvh - 48px))}
+.st-wrap{display:grid;grid-template-columns:220px minmax(0,1fr);height:min(760px,calc(100dvh - 48px))}
 .st-nav{background:var(--brand-tint);padding:22px 12px;border-right:1px solid var(--rule);display:flex;flex-direction:column;gap:2px}
 .st-nav h2{font-family:var(--serif);font-weight:500;font-size:20px;margin:0 10px 14px}
 .st-tab{background:none;border:none;text-align:left;padding:9px 10px;border-radius:7px;font-size:14px;color:var(--muted);cursor:pointer}
