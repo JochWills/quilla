@@ -414,19 +414,21 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 .f .opt{font-weight:400;color:var(--faint);font-size:12.5px}
 
 /* Account settings popup (openSettings in app.js) */
-.qdialog.settings{width:min(760px,calc(100vw - 32px));padding:0}
-.st-wrap{display:grid;grid-template-columns:200px minmax(0,1fr);min-height:420px}
+.qdialog.settings{width:min(760px,calc(100vw - 32px));padding:0;overflow:hidden}
+/* Fixed size for every section; a longer section scrolls inside the pane. */
+.st-wrap{display:grid;grid-template-columns:200px minmax(0,1fr);height:min(620px,calc(100dvh - 48px))}
 .st-nav{background:var(--brand-tint);padding:22px 12px;border-right:1px solid var(--rule);display:flex;flex-direction:column;gap:2px}
 .st-nav h2{font-family:var(--serif);font-weight:500;font-size:20px;margin:0 10px 14px}
 .st-tab{background:none;border:none;text-align:left;padding:9px 10px;border-radius:7px;font-size:14px;color:var(--muted);cursor:pointer}
 .st-tab:hover{background:var(--brand-soft);color:var(--ink)}
 .st-tab[aria-current="true"]{background:var(--surface);color:var(--ink);font-weight:500;box-shadow:var(--shadow-sm)}
-.st-body{position:relative;padding:26px 28px}
+.st-body{position:relative;min-height:0;display:flex;flex-direction:column}
+#stPane{flex:1;min-height:0;overflow-y:auto;padding:26px 28px;overscroll-behavior:contain}
 .st-body h3{font-size:17px;font-weight:600;margin:0 0 4px}
 .st-sub{margin:0 0 18px}
-.st-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:7px;border:none;background:none;font-size:22px;line-height:1;color:var(--muted);cursor:pointer}
+.st-close{position:absolute;top:14px;right:14px;z-index:2;background:var(--surface);width:32px;height:32px;border-radius:7px;border:none;background:none;font-size:22px;line-height:1;color:var(--muted);cursor:pointer}
 .st-close:hover{background:var(--brand-tint);color:var(--ink)}
-@media (max-width:600px){.st-wrap{grid-template-columns:minmax(0,1fr)}.st-nav{flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--rule);padding:14px}.st-nav h2{width:100%;margin:0 6px 8px}}
+@media (max-width:600px){.st-wrap{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}.st-nav{flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--rule);padding:14px}.st-nav h2{width:100%;margin:0 6px 8px}}
 
 /* ---------------- Records list (redesign) ---------------- */
 .main{background:#FAFBFA url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='420' viewBox='0 0 900 420' fill='none'%3E%3Cpath d='M0 420C260 360 520 250 900 110V420z' fill='%231D4B48' fill-opacity='.028'/%3E%3Cpath d='M160 420C420 330 640 250 900 210V420z' fill='%231D4B48' fill-opacity='.03'/%3E%3C/svg%3E") no-repeat right bottom fixed}
