@@ -283,7 +283,7 @@ async function save() {
 }
 
 /* ---------------- App render ---------------- */
-const NAV_OF = { list: "list", record: "list", clients: "clients", client: "clients", meetings: "meetings", meeting: "meetings", templates: "templates", compliance: "compliance" };
+const NAV_OF = { list: "list", record: "list", clients: "clients", client: "clients", meetings: "meetings", meeting: "meetings", templates: "", compliance: "compliance" };
 let renderSeq = 0; // bumps on every screen change; a background refresh repaints only if it still matches
 function renderApp() {
   renderSeq++; leaveGuard = null; $("#savestate").textContent = view === "record" ? $("#savestate").textContent : "";
@@ -337,7 +337,7 @@ async function followRoute() {
   }
 }
 addEventListener("popstate", () => { if (!$("#app").hidden) followRoute(); });
-// Leave the current screen: finish saves, protect unsaved templates.
+// Leave the current screen: finish saves, protect unsaved standard wording.
 async function canLeave() {
   if (busy) return false;
   if (leaveGuard?.() && !(await confirmBox({ title: "Leave without saving?", body: "Your changes on this screen haven't been saved.", confirmLabel: "Leave without saving", danger: true }))) return false;
@@ -991,7 +991,7 @@ function renderDocument() {
       ${s.status === "not_captured" && !na ? `<p class="sec-hint">${esc(hint)}</p>` : ""}
       <div class="sec-body"><textarea data-sec="${id}" aria-label="${esc(title)}" rows="2" ${ro ? "readonly" : ""} placeholder="${na ? "Not applicable: no existing product is being replaced." : "Not captured in the notes. Add it here or resolve the flagged item."}"></textarea></div>
       ${s.evidence.length ? `<div class="evidence">From your notes: ${s.evidence.map((q) => `<q>${esc(q)}</q>`).join(" · ")}</div>` : ""}
-      ${s.standard ? `<div class="evidence">Includes your standard wording from Templates.</div>` : ""}
+      ${s.standard ? `<div class="evidence">Includes your standard wording (account menu → Standard wording).</div>` : ""}
       <div class="sec-msg" id="msg-${id}" aria-live="polite"></div>
     </section>`;
   }).join("");
@@ -1268,7 +1268,7 @@ function closeSide() { $("#side").classList.remove("open"); $("#menuBtn").setAtt
 $("#menuBtn").addEventListener("click", () => { const o = $("#side").classList.toggle("open"); $("#menuBtn").setAttribute("aria-expanded", String(o)); });
 $("#newRec").addEventListener("click", newRecord);
 $("#navRecords").addEventListener("click", () => go("list"));
-document.querySelectorAll("[data-nav]").forEach((b) => b.addEventListener("click", () => go(b.dataset.nav)));
+document.querySelectorAll("[data-nav]").forEach((b) => b.addEventListener("click", () => { setAcctMenu(false); go(b.dataset.nav); }));
 // Account menu (bottom of the sidebar): opens upwards; Esc or clicking elsewhere closes it.
 function setAcctMenu(open) { $("#acctMenu").hidden = !open; $("#acctBtn").setAttribute("aria-expanded", String(open)); }
 function renderAcctBtn() {

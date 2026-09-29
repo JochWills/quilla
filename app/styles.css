@@ -676,3 +676,13 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 .tpl-acts{display:flex;align-items:center;gap:14px;margin-left:auto}
 .tpl-acts .linkbtn{font-size:13.5px;color:var(--muted)}
 .tpl.dirty{border-color:var(--amber-line);box-shadow:0 0 0 3px color-mix(in srgb,var(--amber-line) 18%,transparent)}
+
+/* Standard wording: drafting guidance tucked under "Advanced" */
+.tpl .f textarea{font-size:14px}
+.tpl-adv{margin-top:12px;border-top:1px dashed var(--rule);padding-top:10px}
+.tpl-adv summary{cursor:pointer;font-size:13px;font-weight:500;color:var(--muted);list-style:none;display:inline-flex;align-items:center;gap:6px}
+.tpl-adv summary::-webkit-details-marker{display:none}
+.tpl-adv summary::before{content:"";width:6px;height:6px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+.tpl-adv[open] summary::before{transform:rotate(45deg)}
+.tpl-adv summary:hover{color:var(--ink)}
+.tpl-adv .f{margin-top:10px}

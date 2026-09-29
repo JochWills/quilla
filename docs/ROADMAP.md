@@ -8,7 +8,7 @@
 - PDF and Word (.docx) export with practice branding, generated from the sealed version.
 - Clients: client list and pages; records and meetings link to a client.
 - Meetings: advisor notes, optional transcript files (.vtt/.srt/.txt/.docx) or pasted transcripts, speaker naming, start a record from a meeting. (In-app recording and Deepgram transcription were built, then removed on 29 Sep 2026: transcription errors in figures and names were too risky for a compliance record.)
-- Templates: per-section guidance for the AI and standard wording.
+- Standard wording (account menu): per-section fixed practice text appended to drafts, with optional drafting guidance under "Advanced".
 - Compliance dashboard: drafts needing attention, overrides, sealing status and retention dates.
 
 ## Before public launch (must do)
@@ -23,7 +23,7 @@
 ## Next features
 - **Payments**: Paystack subscriptions (ZAR), plan limits enforced in the `ai` function.
 - **Practices**: organisations, multiple advisors, compliance officer read/review role.
-- **Practice templates**: shared across a practice (today they're per advisor), and custom section order.
+- **Practice standard wording**: shared across a practice (today they're per advisor), and custom section order.
 - **TrailBook integration**: pull commission data into "Remuneration and conflicts".
 - Shared `SECTIONS` definition between app and function (single source of truth).
 - Move the app to Vite + TypeScript once it grows beyond one file.

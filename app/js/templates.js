@@ -1,15 +1,19 @@
-// Templates: per-section guidance for the AI and standard wording, saved on the advisor's
-// profile as {section_id: {guidance, standard}}. The 13 FAIS sections themselves are fixed.
+// Standard wording (route "templates", opened from the account menu): per-section fixed text
+// and, under "Advanced", drafting guidance for the AI. Saved on the advisor's profile as
+// {section_id: {guidance, standard}}. The 13 FAIS sections themselves are fixed.
+// standard: appended by the app to that section after each draft, visibly marked. It's meant for
+//   practice statements (licence, conflicts policy, complaints), never claims about a meeting.
 // guidance: read server-side by the `ai` function when drafting and improving (never a source of facts).
-// standard: appended by the app to that section after each draft, visibly marked.
 
 import { IC, pageHead, tabsBar, bindTabs, setTabCounts, searchBox } from "./ui.js";
 
 const MAX = { guidance: 500, standard: 2000 };
 const EXAMPLES = {
   risk_profile: ["e.g. Always say which risk questionnaire was used and the date it was completed.", ""],
-  fees: ["e.g. List each fee on its own line with the rate and whether it's once-off or ongoing.", "e.g. All fees were disclosed to the client in writing before the client agreed to proceed."],
-  conflicts: ["", "e.g. I am paid through the advice fees agreed with the client and, where applicable, product commission. I have disclosed any financial interest in the products recommended."],
+  fees: ["e.g. List each fee on its own line with the rate and whether it's once-off or ongoing.", "e.g. Fees are quoted excluding VAT unless stated otherwise."],
+  risks_disclosures: ["", "e.g. Past performance is not a reliable guide to future returns. The value of investments can go down as well as up."],
+  conflicts: ["", "e.g. We are an authorised financial services provider (FSP no. 12345). Our conflict of interest management policy is available on request."],
+  client_decision: ["", "e.g. If you are unhappy with our advice, you may complain to us in writing or to the FAIS Ombud (www.faisombud.co.za)."],
 };
 
 let tTab = "all", tQuery = "";
@@ -20,27 +24,27 @@ export function renderTemplates(ctx) {
   const t = ctx.profile.template || {};
   const filled = Object.values(t).filter((e) => e?.guidance || e?.standard).length;
   $("#content").innerHTML = `
-    ${pageHead("Templates", "Make every draft sound like your practice: guidance for the AI and standard wording, section by section.", { id: "tplSave", label: "Save all", icon: SAVE_IC })}
+    ${pageHead("Standard wording", "Text your practice includes in every Record of Advice, added to the matching section after each draft.", { id: "tplSave", label: "Save all", icon: SAVE_IC })}
     <div class="ltools">
-      ${tabsBar([["all", "All sections", IC.grid, 13], ["custom", "Customised", IC.sparkle, filled], ["plain", "Not customised", IC.file, 13 - filled]], tTab, "Filter sections")}
+      ${tabsBar([["all", "All sections", IC.grid, 13], ["custom", "Set", IC.sparkle, filled], ["plain", "Not set", IC.file, 13 - filled]], tTab, "Filter sections")}
       <div class="lsearch-wrap">${searchBox("tplSearch", "Search sections…", esc(tQuery))}</div>
     </div>
     <div class="card tpl-intro">
-      <p><b>Guidance</b> tells Quilla how you like a section written or what to look for in your notes. It's never treated as a fact about the client.</p>
-      <p><b>Standard wording</b> is text you use in every record, such as your fee or remuneration disclosure. It's added to the end of that section after drafting, so you can see and edit it before signing.</p>
+      <p><b>What belongs here:</b> fixed statements about your practice, such as your FSP licence details, conflict of interest policy, how you're paid, your complaints process and general risk warnings. They're added to the end of the section after drafting, so you can see and edit them before signing.</p>
+      <p><b>What doesn't:</b> anything about what happened in a meeting, like "The client confirmed they understood the fees". That's added to every record whether or not it happened, so it must come from your notes instead.</p>
     </div>
     <div class="tpl-list">
       ${ctx.SECTIONS.map(([id, title, hint], i) => {
         const e = t[id] || {}, ex = EXAMPLES[id] || ["", ""];
         const on = !!(e.guidance || e.standard);
         return `<section class="card tpl" id="tpl-${id}" data-title="${esc(title.toLowerCase())}">
-          <div class="tpl-h"><span class="num">${i + 1}</span><div><h3>${esc(title)}</h3><p class="note">${esc(hint)}</p></div>${on ? `<span class="pill signed sm tpl-on">${IC.check}Customised</span>` : ""}</div>
-          <div class="tpl-grid">
-            <label class="f">Guidance for the AI <span class="hint">Optional. Up to ${MAX.guidance} characters.</span>
-              <textarea data-tpl="${id}" data-k="guidance" rows="3" maxlength="${MAX.guidance}" placeholder="${esc(ex[0] || "e.g. Keep it to two or three sentences.")}">${esc(e.guidance || "")}</textarea></label>
-            <label class="f">Standard wording <span class="hint">Optional. Added to every draft.</span>
-              <textarea data-tpl="${id}" data-k="standard" rows="3" maxlength="${MAX.standard}" placeholder="${esc(ex[1] || "Text you include in this section of every record")}">${esc(e.standard || "")}</textarea></label>
-          </div>
+          <div class="tpl-h"><span class="num">${i + 1}</span><div><h3>${esc(title)}</h3><p class="note">${esc(hint)}</p></div>${on ? `<span class="pill signed sm tpl-on">${IC.check}Set</span>` : ""}</div>
+          <label class="f">Standard wording <span class="hint">Optional. Added to this section of every draft.</span>
+            <textarea data-tpl="${id}" data-k="standard" rows="3" maxlength="${MAX.standard}" placeholder="${esc(ex[1] || "Text your practice includes in this section of every record")}">${esc(e.standard || "")}</textarea></label>
+          <details class="tpl-adv" ${e.guidance ? "open" : ""}><summary>Advanced: drafting guidance</summary>
+            <label class="f">How Quilla should write this section <span class="hint">Optional. Up to ${MAX.guidance} characters. Shapes the wording only; it's never treated as a fact about the client.</span>
+              <textarea data-tpl="${id}" data-k="guidance" rows="2" maxlength="${MAX.guidance}" placeholder="${esc(ex[0] || "e.g. Keep it to two or three sentences.")}">${esc(e.guidance || "")}</textarea></label>
+          </details>
           <div class="tpl-foot"><span class="tpl-state" aria-live="polite"></span><span class="tpl-acts"><button type="button" class="linkbtn" data-undo="${id}" hidden>Undo changes</button><button type="button" class="btn btn-sm btn-primary" data-save="${id}" hidden>Save section</button></span></div>
         </section>`;
       }).join("")}
@@ -78,7 +82,7 @@ export function renderTemplates(ctx) {
     card.querySelector(".tpl-state").innerHTML = d ? `<span class="dot"></span>Unsaved changes` : justSaved ? `${IC.check}Saved` : "";
     card.querySelector(".tpl-state").className = `tpl-state${d ? " unsaved" : justSaved ? " ok" : ""}`;
     const pill = card.querySelector(".tpl-on");
-    if (on && !pill) card.querySelector(".tpl-h").insertAdjacentHTML("beforeend", `<span class="pill signed sm tpl-on">${IC.check}Customised</span>`);
+    if (on && !pill) card.querySelector(".tpl-h").insertAdjacentHTML("beforeend", `<span class="pill signed sm tpl-on">${IC.check}Set</span>`);
     if (!on && pill) pill.remove();
     ctx.$("#savestate").textContent = anyDirty() ? "Unsaved" : "";
   };
@@ -107,7 +111,7 @@ export function renderTemplates(ctx) {
     btn.disabled = true; btn.textContent = "Saving…";
     const ok = await ctx.saveProfile({ template: next });
     btn.disabled = false; btn.textContent = btn.id === "tplSave" ? "Save all" : "Save all sections";
-    if (ok) { ctx.$("#savestate").textContent = "Saved"; ctx.toast("Templates saved. They apply to your next draft."); renderTemplates(ctx); }
+    if (ok) { ctx.$("#savestate").textContent = "Saved"; ctx.toast("Standard wording saved. It applies to your next draft."); renderTemplates(ctx); }
   };
   $("#tplSave").addEventListener("click", (e) => save(e.currentTarget));
   $("#tplSave2").addEventListener("click", (e) => save(e.currentTarget));
