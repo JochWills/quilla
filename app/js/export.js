@@ -28,19 +28,39 @@ const loadDocx = () => (docxReady ||= import(DOCX).catch((e) => { docxReady = nu
 function integrityText(d) {
   return `This document was generated from version ${d.seal.version} of the record, sealed on ${d.seal.sealedAt}. A sealed version can't be changed: any later edits create a new version. SHA-256 fingerprint of the sealed version:`;
 }
+// Letterhead (Settings → Letterhead): logo and practice details top of page one, a footer line
+// on every page, and an accent colour for headings and rules. Absent → Quilla's default layout.
+function lhOf(d) {
+  const lh = d.letterhead || {};
+  const contact = [lh.phone, lh.email, lh.website].filter(Boolean).join("  ·  ");
+  const lines = [lh.logo && d.practice ? d.practice : "", lh.address, contact, lh.reg_no].filter(Boolean);
+  return { ...lh, accent: lh.accent || BRAND, contact, lines, on: !!(lh.logo || lines.length || lh.footer) };
+}
+// Logo size in points, fitted into 180 × 56.
+function logoSize(lh) { const r = lh.logo_w / lh.logo_h, h = Math.min(56, 180 / r); return { w: Math.round(h * r), h: Math.round(h) }; }
 function footerLabel(d) { return [d.practice, "Record of Advice", d.client, d.seal ? `Version ${d.seal.version}` : "Draft"].filter(Boolean).join("  ·  "); }
 
 /* ---------------- PDF ---------------- */
 export async function buildPdf(d) {
   const pdfMake = await loadPdfMake();
+  const lh = lhOf(d), ACC = lh.accent;
   const h2 = (text) => ({ text, style: "h2" });
   const body = (text, note) => text ? { text, style: "body" } : { text: note, style: "body", italics: true, color: MUTED };
-  const content = [
+  const rule = (m) => ({ canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: ACC }], margin: m });
+  const stamp = { width: "auto", text: d.statusLabel, style: d.seal ? "stampSealed" : "stampDraft", margin: [0, 4, 0, 0] };
+  const content = lh.logo || lh.lines.length ? [
+    { columns: [
+      lh.logo ? { image: lh.logo, ...(({ w, h }) => ({ width: w, height: h }))(logoSize(lh)) } : { width: "auto", text: d.practice || "", style: "practiceLg" },
+      { width: "*", stack: lh.lines.map((t, i) => ({ text: t, bold: i === 0 && !!lh.logo && !!d.practice, color: i === 0 && lh.logo && d.practice ? INK : MUTED })), alignment: "right", fontSize: 8.5, lineHeight: 1.25 },
+    ], columnGap: 16 },
+    rule([0, 10, 0, 12]),
+    { columns: [{ width: "*", text: "Record of Advice", style: "h1" }, stamp], margin: [0, 0, 0, 10] },
+  ] : [
     { columns: [
       { width: "*", stack: [d.practice ? { text: d.practice, style: "practice" } : "", { text: "Record of Advice", style: "h1" }] },
-      { width: "auto", text: d.statusLabel, style: d.seal ? "stampSealed" : "stampDraft", margin: [0, 4, 0, 0] },
+      stamp,
     ] },
-    { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: BRAND }], margin: [0, 8, 0, 12] },
+    rule([0, 8, 0, 12]),
     { table: { widths: [80, "*", 80, "*"], body: [0, 2, 4].map((i) => [
       { text: d.meta[i][0], style: "label" }, { text: d.meta[i][1] },
       { text: d.meta[i + 1][0], style: "label" }, { text: d.meta[i + 1][1] },
@@ -72,7 +92,7 @@ export async function buildPdf(d) {
 
   if (d.seal) content.push({
     table: { widths: ["*"], body: [[{ stack: [
-      { text: "Record integrity", bold: true, color: BRAND, margin: [0, 0, 0, 3] },
+      { text: "Record integrity", bold: true, color: ACC, margin: [0, 0, 0, 3] },
       { text: integrityText(d), fontSize: 8.5, color: MUTED },
       { text: d.seal.sha256, fontSize: 8, margin: [0, 3, 0, 0], characterSpacing: 0.3 },
     ], fillColor: TINT, margin: [8, 8, 8, 8] }]] },
@@ -82,15 +102,19 @@ export async function buildPdf(d) {
 
   const def = {
     info: { title: `Record of Advice: ${d.client}`, author: d.meta[2][1], creator: "Quilla" },
-    pageSize: "A4", pageMargins: [40, 44, 40, 52],
-    watermark: d.seal || d.signed ? undefined : { text: "DRAFT", color: BRAND, opacity: 0.06, bold: true },
-    footer: (page, pages) => ({ columns: [{ text: footerLabel(d) }, { text: `Page ${page} of ${pages}`, alignment: "right", width: "auto" }], margin: [40, 18, 40, 0], fontSize: 7.5, color: MUTED }),
+    pageSize: "A4", pageMargins: [40, 44, 40, lh.footer ? 64 : 52],
+    watermark: d.seal || d.signed ? undefined : { text: d.statusLabel === "SAMPLE" ? "SAMPLE" : "DRAFT", color: ACC, opacity: 0.06, bold: true },
+    footer: (page, pages) => ({ stack: [
+      lh.footer ? { text: lh.footer, margin: [0, 0, 0, 3] } : "",
+      { columns: [{ text: footerLabel(d) }, { text: `Page ${page} of ${pages}`, alignment: "right", width: "auto" }] },
+    ], margin: [40, lh.footer ? 16 : 18, 40, 0], fontSize: 7.5, color: MUTED }),
     content,
     defaultStyle: { font: "Roboto", fontSize: 10, lineHeight: 1.3, color: INK },
     styles: {
-      practice: { fontSize: 11, bold: true, color: BRAND, margin: [0, 0, 0, 2] },
+      practice: { fontSize: 11, bold: true, color: ACC, margin: [0, 0, 0, 2] },
+      practiceLg: { fontSize: 15, bold: true, color: ACC },
       h1: { fontSize: 20, bold: true, color: INK },
-      h2: { fontSize: 11.5, bold: true, color: BRAND, margin: [0, 14, 0, 4] },
+      h2: { fontSize: 11.5, bold: true, color: ACC, margin: [0, 14, 0, 4] },
       body: { fontSize: 10 },
       label: { color: MUTED },
       th: { bold: true, color: INK },
@@ -103,31 +127,48 @@ export async function buildPdf(d) {
 
 /* ---------------- Word (.docx) ---------------- */
 export async function buildDocx(d) {
-  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType, Footer, PageNumber, AlignmentType } = await loadDocx();
-  const hex = (c) => c.slice(1);
+  const { Document, Packer, Paragraph, TextRun, ImageRun, Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType, Footer, PageNumber, AlignmentType } = await loadDocx();
+  const lh = lhOf(d), hex = (c) => c.slice(1), ACC = lh.accent;
   // Multi-line text → one run per line, joined with line breaks.
   const runs = (text, o = {}) => String(text).split("\n").map((line, i) => new TextRun({ text: line, break: i ? 1 : 0, ...o }));
   const p = (text, o = {}, po = {}) => new Paragraph({ children: runs(text, o), spacing: { after: 80 }, ...po });
-  const h2 = (text) => new Paragraph({ children: [new TextRun({ text, bold: true, size: 23, color: hex(BRAND) })], spacing: { before: 280, after: 80 }, keepNext: true });
+  const h2 = (text) => new Paragraph({ children: [new TextRun({ text, bold: true, size: 23, color: hex(ACC) })], spacing: { before: 280, after: 80 }, keepNext: true });
   const none = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
   const noBorders = { top: none, bottom: none, left: none, right: none, insideHorizontal: none, insideVertical: none };
   const line = { style: BorderStyle.SINGLE, size: 4, color: hex(RULE) };
   const gridBorders = { top: line, bottom: line, left: line, right: line, insideHorizontal: line, insideVertical: line };
   const cell = (children, o = {}) => new TableCell({ children: Array.isArray(children) ? children : [children], margins: { top: 60, bottom: 60, left: 90, right: 90 }, ...o });
   const tint = { type: ShadingType.CLEAR, fill: hex(TINT), color: "auto" };
+  // Fixed table widths in twips (A4 text width with these margins): percentage widths
+  // collapse columns in some Word viewers.
+  const W = 9706;
+  const fixed = (cols) => ({ width: { size: W, type: WidthType.DXA }, columnWidths: cols, layout: "fixed" });
+  const dxa = (n) => ({ width: { size: n, type: WidthType.DXA } });
 
   const children = [];
-  if (d.practice) children.push(p(d.practice, { bold: true, size: 22, color: hex(BRAND) }, { spacing: { after: 20 } }));
+  if (lh.logo || lh.lines.length) {
+    // Letterhead: logo (or practice name) left, details right, above the title.
+    let left;
+    if (lh.logo) {
+      const { w, h } = logoSize(lh), bytes = Uint8Array.from(atob(lh.logo.split(",")[1]), (c) => c.charCodeAt(0));
+      left = new Paragraph({ children: [new ImageRun({ type: lh.logo.startsWith("data:image/png") ? "png" : "jpg", data: bytes, transformation: { width: Math.round(w * 4 / 3), height: Math.round(h * 4 / 3) } })] });
+    } else left = p(d.practice || "", { bold: true, size: 30, color: hex(ACC) });
+    const right = lh.lines.map((t, i) => new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 20 }, children: [new TextRun({ text: t, size: 17, bold: i === 0 && !!lh.logo && !!d.practice, color: i === 0 && lh.logo && d.practice ? hex(INK) : hex(MUTED) })] }));
+    children.push(new Table({ ...fixed([4200, 5506]), borders: noBorders, rows: [new TableRow({ children: [
+      cell(left, { ...dxa(4200), verticalAlign: "center", margins: { top: 0, bottom: 0, left: 0, right: 90 } }),
+      cell(right.length ? right : [p("")], { ...dxa(5506), verticalAlign: "center", margins: { top: 0, bottom: 0, left: 90, right: 0 } }),
+    ] })] }), new Paragraph({ text: "", border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: hex(ACC), space: 4 } }, spacing: { after: 200 } }));
+  } else if (d.practice) children.push(p(d.practice, { bold: true, size: 22, color: hex(ACC) }, { spacing: { after: 20 } }));
   children.push(new Paragraph({
     children: [new TextRun({ text: "Record of Advice", bold: true, size: 40 }), new TextRun({ text: `\t${d.statusLabel}`, bold: true, size: 18, color: d.seal ? "1F6B47" : "8A5A00" })],
-    tabStops: [{ type: "right", position: 9026 }],
-    border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: hex(BRAND), space: 6 } }, spacing: { after: 200 },
+    tabStops: [{ type: "right", position: 9706 }],
+    ...(lh.logo || lh.lines.length ? {} : { border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: hex(ACC), space: 6 } } }), spacing: { after: 200 },
   }));
   children.push(new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE }, borders: noBorders,
+    ...fixed([1550, 3303, 1550, 3303]), borders: noBorders,
     rows: [0, 2, 4].map((i) => new TableRow({ children: [
-      cell(p(d.meta[i][0], { color: hex(MUTED) }), { width: { size: 16, type: WidthType.PERCENTAGE } }), cell(p(d.meta[i][1])),
-      cell(p(d.meta[i + 1][0], { color: hex(MUTED) }), { width: { size: 16, type: WidthType.PERCENTAGE } }), cell(p(d.meta[i + 1][1])),
+      cell(p(d.meta[i][0], { color: hex(MUTED) }), dxa(1550)), cell(p(d.meta[i][1]), dxa(3303)),
+      cell(p(d.meta[i + 1][0], { color: hex(MUTED) }), dxa(1550)), cell(p(d.meta[i + 1][1]), dxa(3303)),
     ] })),
   }));
   if (d.summary) children.push(p(d.summary, { italics: true, color: hex(MUTED) }, { spacing: { before: 160, after: 80 } }));
@@ -143,27 +184,28 @@ export async function buildDocx(d) {
   children.push(p("Client signature: ______________________________        Date: ________________", {}, { spacing: { before: 360, after: 80 } }));
 
   children.push(h2("Appendix: compliance review items"));
+  const GW = [1900, 1100, 3350, 3356];
   children.push(d.gaps.length ? new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE }, borders: gridBorders,
+    ...fixed(GW), borders: gridBorders,
     rows: [
-      new TableRow({ tableHeader: true, children: ["Section", "Severity", "Item", "Resolution"].map((t) => cell(p(t, { bold: true, size: 18 }), { shading: tint })) }),
-      ...d.gaps.map((g) => new TableRow({ children: [g.section, g.severity, g.issue].map((t) => cell(p(t, { size: 18 }))).concat(cell(p(g.resolution, { size: 18, bold: g.open }))) })),
+      new TableRow({ tableHeader: true, children: ["Section", "Severity", "Item", "Resolution"].map((t, i) => cell(p(t, { bold: true, size: 18 }), { shading: tint, ...dxa(GW[i]) })) }),
+      ...d.gaps.map((g) => new TableRow({ children: [g.section, g.severity, g.issue].map((t, i) => cell(p(t, { size: 18 }), dxa(GW[i]))).concat(cell(p(g.resolution, { size: 18, bold: g.open }), dxa(GW[3]))) })),
     ],
   }) : p("No items were flagged.", { color: hex(MUTED) }));
 
   children.push(h2("Appendix: record history"));
   children.push(new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE }, borders: noBorders,
-    rows: d.audit.map(([t, x]) => new TableRow({ children: [cell(p(t, { size: 17, color: hex(MUTED) }), { width: { size: 24, type: WidthType.PERCENTAGE } }), cell(p(x, { size: 17 }))] })),
+    ...fixed([2330, 7376]), borders: noBorders,
+    rows: d.audit.map(([t, x]) => new TableRow({ children: [cell(p(t, { size: 17, color: hex(MUTED) }), dxa(2330)), cell(p(x, { size: 17 }), dxa(7376))] })),
   }));
 
   if (d.seal) children.push(new Paragraph({ text: "", spacing: { after: 200 } }), new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE }, borders: noBorders,
+    ...fixed([W]), borders: noBorders,
     rows: [new TableRow({ cantSplit: true, children: [cell([
-      p("Record integrity", { bold: true, color: hex(BRAND) }),
+      p("Record integrity", { bold: true, color: hex(ACC) }),
       p(integrityText(d), { size: 17, color: hex(MUTED) }),
       p(d.seal.sha256, { size: 16, font: "Consolas" }),
-    ], { shading: tint, margins: { top: 140, bottom: 140, left: 160, right: 160 } })] })],
+    ], { shading: tint, ...dxa(W), margins: { top: 140, bottom: 140, left: 160, right: 160 } })] })],
   }));
   children.push(p("Drafted with Quilla from the advisor's meeting notes and reviewed by the advisor.", { size: 16, color: hex(MUTED) }, { spacing: { before: 240 } }));
 
@@ -172,7 +214,7 @@ export async function buildDocx(d) {
     styles: { default: { document: { run: { font: "Calibri", size: 21, color: hex(INK) } } } },
     sections: [{
       properties: { page: { margin: { top: 1000, bottom: 1000, left: 1100, right: 1100 } } },
-      footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.LEFT, children: [
+      footers: { default: new Footer({ children: [...(lh.footer ? [new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: lh.footer, size: 15, color: hex(MUTED) })] })] : []), new Paragraph({ alignment: AlignmentType.LEFT, children: [
         new TextRun({ text: footerLabel(d), size: 15, color: hex(MUTED) }),
         new TextRun({ children: ["   ·   Page ", PageNumber.CURRENT, " of ", PageNumber.TOTAL_PAGES], size: 15, color: hex(MUTED) }),
       ] })] }) },

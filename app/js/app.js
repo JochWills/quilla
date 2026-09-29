@@ -8,6 +8,7 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
 import { buildPdf, buildDocx } from "./export.js";
+import { renderLetterheadPane, cleanLetterhead } from "./letterhead.js";
 import { renderClients, renderClient } from "./clients.js";
 import { renderMeetings, renderMeeting, flushMeeting } from "./meetings.js";
 import { renderTemplates } from "./templates.js";
@@ -145,7 +146,7 @@ function pickExample() {
 
 /* ---------------- State ---------------- */
 const today = () => new Date().toISOString().slice(0, 10);
-let profile = { full_name: "", fsp_number: "", practice_name: "", template: {} }; // this advisor's saved profile, prefills new records
+let profile = { full_name: "", fsp_number: "", practice_name: "", template: {}, letterhead: {} }; // this advisor's saved profile, prefills new records
 function blank() {
   return {
     id: crypto.randomUUID(),
@@ -248,7 +249,7 @@ async function loadRecords() {
   setRecCount();
 }
 async function loadProfile() {
-  const { data, error } = await supabase.from("profiles").select("full_name, fsp_number, practice_name, template").eq("id", session.user.id).single();
+  const { data, error } = await supabase.from("profiles").select("full_name, fsp_number, practice_name, template, letterhead").eq("id", session.user.id).single();
   if (!error && data) profile = data;
 }
 async function saveProfile(next) {
@@ -402,7 +403,7 @@ function fileSlug(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/
 async function exportAllData() {
   const q = (t, cols = "*") => supabase.from(t).select(cols).limit(10000);
   const [pr, cl, rc, vs, mt] = await Promise.all([
-    supabase.from("profiles").select("full_name, fsp_number, practice_name, template").eq("id", session.user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, fsp_number, practice_name, template, letterhead").eq("id", session.user.id).maybeSingle(),
     q("clients"), q("records"), q("record_versions"),
     q("meetings", "id, client_id, record_id, title, meeting_date, kind, attendees, notes, transcript, transcript_source, created_at, updated_at"),
   ]);
@@ -433,7 +434,7 @@ function openSettings(section = "profile") {
   const d = document.createElement("dialog");
   d.className = "qdialog settings";
   d.setAttribute("aria-label", "Account settings");
-  const SECTIONS_NAV = [["profile", "Profile"], ["password", "Password"], ["data", "Your data"]];
+  const SECTIONS_NAV = [["profile", "Profile"], ["letterhead", "Letterhead"], ["password", "Password"], ["data", "Your data"]];
   d.innerHTML = `<div class="st-wrap">
       <nav class="st-nav" aria-label="Settings sections">
         <h2>Settings</h2>
@@ -461,6 +462,8 @@ function openSettings(section = "profile") {
         if (ok) toast("Profile saved");
       });
       d.querySelector("#p_name").focus();
+    } else if (key === "letterhead") {
+      renderLetterheadPane(pane(), { profile, saveProfile: async (next) => { const ok = await saveProfile(next); return ok; }, toast, esc, samplePdf });
     } else if (key === "data") {
       pane().innerHTML = `<h3>Your data</h3><p class="note st-sub">Download everything, or close your account. POPIA gives you and your clients the right to both.</p>
         <div class="st-block">
@@ -1215,6 +1218,7 @@ function docModel(r, seal) {
   const m = r.meta, so = r.signoff, signed = r.status === "signed";
   return {
     practice: (m.practice ?? profile.practice_name ?? "").trim(),
+    letterhead: cleanLetterhead(profile.letterhead),
     client: m.client || "Client",
     meta: [["Client", m.client || "—"], ["Reference", m.ref || "—"], ["Advisor", m.adviser || "—"], ["FSP number", m.fsp || "—"], ["Meeting date", fmtDate(m.date)], ["Advice area", m.area || "—"]],
     summary: r.summary || "",
@@ -1261,6 +1265,23 @@ async function exportRecord(kind, versionId, btn) {
   } catch (e) {
     console.error(e); toast(which ? "Couldn't load the sealed version. Try again." : "Couldn't create the file. Check your connection and try again.");
   } finally { if (btn) { btn.disabled = false; btn.textContent = label; } }
+}
+
+// Settings → Letterhead → "Download a sample PDF": a short made-up record in the letterhead
+// being edited (not yet saved), so the advisor can check it before saving.
+async function samplePdf(letterhead, practice) {
+  const r = blank();
+  Object.assign(r.meta, { client: "Sample Client", ref: "SAMPLE-01", adviser: profile.full_name || "Your name", fsp: profile.fsp_number || "", date: today(), area: "Retirement planning", practice });
+  r.summary = "Sample record showing your letterhead. The content is made up.";
+  r.sections = {
+    client_profile: { content: "The client is 45, employed as a marketing director, married with two children." },
+    needs_objectives: { content: "The client wishes to retire at 60 with an income of 70% of current salary." },
+    recommendation: { content: "The advisor recommended increasing retirement annuity contributions by R2,000 per month." },
+  };
+  const d = { ...docModel(r, null), letterhead: cleanLetterhead(letterhead), practice, statusLabel: "SAMPLE" };
+  const blob = await buildPdf(d);
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "Quilla-letterhead-sample.pdf";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 /* ---------------- Sidebar & search ---------------- */

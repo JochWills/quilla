@@ -686,3 +686,23 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 .tpl-adv[open] summary::before{transform:rotate(45deg)}
 .tpl-adv summary:hover{color:var(--ink)}
 .tpl-adv .f{margin-top:10px}
+
+/* Settings → Letterhead: live preview of the top of an export */
+.lh-preview{background:var(--brand-tint);border-radius:12px;padding:16px;margin:4px 0 16px}
+.lh-page{background:#fff;border-radius:4px;box-shadow:0 1px 2px rgba(21,43,42,.06),0 8px 24px rgba(21,43,42,.08);padding:18px 20px 12px;display:grid;gap:6px}
+.lh-top{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:44px}
+.lh-mark img{display:block;max-width:180px;max-height:52px;object-fit:contain}
+.lh-mark b{font-size:16px}
+.lh-det{display:flex;flex-direction:column;align-items:flex-end;text-align:right;font-size:10.5px;line-height:1.35;color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.lh-det b{color:var(--ink);font-size:11px}
+.lh-rule{height:2px;border-radius:1px;margin:4px 0 6px}
+.lh-title{font-weight:700;font-size:17px;color:var(--ink)}
+.lh-h{font-weight:600;font-size:11.5px;margin-top:4px}
+.lh-page i{display:block;height:5px;border-radius:3px;background:#EDF0F0}
+.lh-page i.s{width:60%}
+.lh-foot{margin-top:8px;padding-top:6px;border-top:1px solid var(--rule);font-size:9.5px;color:var(--muted);min-height:18px}
+.lh-logo-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.lh-logo-row label.btn{cursor:pointer}
+.lh-colour{display:flex;align-items:center;gap:12px}
+.lh-colour input[type=color]{width:44px;height:34px;padding:2px;border:1px solid var(--rule-strong);border-radius:8px;background:#fff;cursor:pointer}
+.settings .cap-foot{gap:8px}
