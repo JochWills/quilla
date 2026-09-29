@@ -585,7 +585,7 @@ function renderList() {
     <div class="ltools">
       <div class="ltabs" role="tablist" aria-label="Filter by status">${LIST_TABS.map(([k, label, icon]) => `<button class="ltab" role="tab" data-ltab="${k}" aria-selected="${listTab === k}">${icon}<span>${label}</span><span class="lcount">${count[k]}</span></button>`).join("")}</div>
       <div class="lsearch-wrap">
-        <label class="lsearch">${IC.search}<input type="text" id="listSearch" placeholder="Search records…" aria-label="Search records" value="${esc(listQuery)}"></label>
+        <label class="lsearch">${IC.search}<input type="search" id="listSearch" name="q-listSearch" placeholder="Search records…" aria-label="Search records" value="${esc(listQuery)}" autocomplete="off" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other"></label>
         <button class="icon-btn${nFilters ? " on" : ""}" id="listFilterBtn" aria-haspopup="dialog" aria-expanded="false" aria-label="Filter records${nFilters ? ` (${nFilters} active)` : ""}">${IC.filter}${nFilters ? `<span class="badge">${nFilters}</span>` : ""}</button>
       </div>
     </div>

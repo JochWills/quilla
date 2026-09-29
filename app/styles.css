@@ -59,13 +59,13 @@ a{color:inherit}
 .main{min-width:0;display:flex;flex-direction:column}
 .topbar{display:flex;align-items:center;gap:14px;padding:14px 28px;border-bottom:1px solid var(--rule);background:var(--surface);position:sticky;top:0;z-index:20}
 .search{flex:1;max-width:460px;position:relative}
-.search input[type=text]{width:100%;height:36px;background:#F2F5F5;border:1px solid transparent;border-radius:8px;padding:8px 12px 8px 34px;font-size:14px}
+.search input[type=text],.search input[type=search]{width:100%;height:36px;background:#F2F5F5;border:1px solid transparent;border-radius:8px;padding:8px 12px 8px 34px;font-size:14px}
 .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:var(--faint);fill:none;stroke-width:1.8}
 .savestate{margin-left:auto;font-size:13px;color:var(--faint)}
 .menu-btn{display:none;background:none;border:1px solid var(--rule-strong);border-radius:7px;padding:6px 10px;cursor:pointer}
 .content{padding:28px 28px 80px;max-width:1280px;width:100%}
-input[type=text],input[type=date],input[type=email],input[type=tel],input[type=password],select,textarea{background:var(--paper);border:1px solid var(--rule-strong);border-radius:8px;padding:9px 12px;width:100%;font-size:15px}
-input[type=text],input[type=date],input[type=email],input[type=tel],input[type=password],select{height:42px;line-height:1.3;font-family:inherit;color:var(--ink)}
+input[type=text],input[type=search],input[type=date],input[type=email],input[type=tel],input[type=password],select,textarea{background:var(--paper);border:1px solid var(--rule-strong);border-radius:8px;padding:9px 12px;width:100%;font-size:15px}
+input[type=text],input[type=search],input[type=date],input[type=email],input[type=tel],input[type=password],select{height:42px;line-height:1.3;font-family:inherit;color:var(--ink)}
 
 /* Custom dropdowns and date pickers (js/controls.js). The native control stays, visually hidden. */
 .cc-native{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:0!important;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0!important;opacity:0;pointer-events:none}
@@ -434,8 +434,8 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 .main{background:#FAFBFA url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='420' viewBox='0 0 900 420' fill='none'%3E%3Cpath d='M0 420C260 360 520 250 900 110V420z' fill='%231D4B48' fill-opacity='.028'/%3E%3Cpath d='M160 420C420 330 640 250 900 210V420z' fill='%231D4B48' fill-opacity='.03'/%3E%3C/svg%3E") no-repeat right bottom fixed}
 .topbar{background:rgba(255,255,255,.92);backdrop-filter:saturate(1.2) blur(6px);padding:14px 28px}
 .search{max-width:520px}
-.search input[type=text]{height:40px;background:#F4F6F5;border:1px solid var(--rule);border-radius:10px;padding:8px 64px 8px 38px;font-size:14px}
-.search input[type=text]:focus{background:#fff}
+.search input[type=text],.search input[type=search]{height:40px;background:#F4F6F5;border:1px solid var(--rule);border-radius:10px;padding:8px 64px 8px 38px;font-size:14px}
+.search input[type=text]:focus,.search input[type=search]:focus{background:#fff}
 .search svg{left:13px;width:16px;height:16px}
 .kbd{position:absolute;right:8px;top:50%;transform:translateY(-50%);font:500 11.5px/1 var(--sans);color:var(--muted);background:#fff;border:1px solid var(--rule);border-radius:6px;padding:5px 7px;pointer-events:none}
 .search input:focus ~ .kbd{display:none}
@@ -458,7 +458,7 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 .lsearch-wrap{display:flex;gap:10px;margin-left:auto}
 .lsearch{position:relative;display:block;width:280px}
 .lsearch svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:16px;height:16px;fill:none;stroke:var(--faint);stroke-width:1.8;pointer-events:none}
-.lsearch input[type=text]{height:40px;padding-left:38px;border-color:var(--rule);border-radius:10px;font-size:14px}
+.lsearch input[type=text],.lsearch input[type=search]{height:40px;padding-left:38px;border-color:var(--rule);border-radius:10px;font-size:14px}
 .icon-btn{position:relative;width:40px;height:40px;display:grid;place-items:center;background:#fff;border:1px solid var(--rule);border-radius:10px;cursor:pointer;color:var(--ink)}
 .icon-btn:hover{border-color:var(--rule-strong)}
 .icon-btn.on{border-color:var(--brand);color:var(--brand)}
@@ -542,7 +542,7 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 @media (max-width:560px){
   .ltab{padding:0 10px;height:36px}.ltab svg{display:none}
   .wav{width:36px;height:36px;font-size:12.5px}
-  .kbd{display:none}.search input[type=text]{padding-right:12px}
+  .kbd{display:none}.search input[type=text],.search input[type=search]{padding-right:12px}
 }
 
 /* ---------------- Shared list design: Clients, Meetings, Templates, Compliance ---------------- */
@@ -708,3 +708,7 @@ textarea.transcript{min-height:320px;font-size:14.5px;line-height:1.6}
 .lh-colour{display:flex;align-items:center;gap:12px}
 .lh-colour input[type=color]{width:44px;height:34px;padding:2px;border:1px solid var(--rule-strong);border-radius:8px;background:#fff;cursor:pointer}
 .settings .cap-foot{gap:8px}
+
+/* Search boxes are type="search" (so browsers don't offer saved logins); drop the native styling and clear button. */
+input[type=search]{-webkit-appearance:none;appearance:none}
+input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-search-decoration{-webkit-appearance:none;appearance:none;display:none}

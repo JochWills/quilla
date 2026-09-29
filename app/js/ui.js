@@ -64,7 +64,7 @@ export function setTabCounts(root, counts) {
   Object.entries(counts).forEach(([k, n]) => { const el = root.querySelector(`[data-ltab="${k}"] .lcount`); if (el) el.textContent = n; });
 }
 export const searchBox = (id, placeholder, value, label) =>
-  `<label class="lsearch">${IC.search}<input type="text" id="${id}" placeholder="${placeholder}" aria-label="${label || placeholder.replace("…", "")}" value="${value}" autocomplete="off"></label>`;
+  `<label class="lsearch">${IC.search}<input type="search" id="${id}" name="q-${id}" placeholder="${placeholder}" aria-label="${label || placeholder.replace("…", "")}" value="${value}" autocomplete="off" autocorrect="off" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other"></label>`;
 
 // Sortable column header. sort = { key, dir } (dir 1 = ascending). key "" = default order.
 export function sortTh(sort, key, label, cls = "") {
