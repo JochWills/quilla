@@ -101,8 +101,12 @@ function meetingMenu(ctx, btn) {
 async function deleteMeeting(ctx, m) {
   const ok = await ctx.confirmBox({ title: "Delete this meeting?", body: "The meeting details, notes and transcript will be permanently deleted. Any Record of Advice started from it is kept.", confirmLabel: "Delete meeting", danger: true });
   if (!ok) return false;
+  // Drop any pending autosave of this meeting first, or leaving the page would save it back.
+  const open = M?.id === m.id;
+  if (open) { clearTimeout(saveTimer); saveTimer = null; }
   const { error } = await ctx.supabase.from("meetings").delete().eq("id", m.id);
-  if (error) { ctx.toast("Couldn't delete the meeting. Try again."); return false; }
+  if (error) { ctx.toast("Couldn't delete the meeting. Try again."); if (open) queueSave(ctx); return false; }
+  if (open) M = null;
   ctx.toast("Meeting deleted");
   return true;
 }
@@ -245,8 +249,9 @@ function drawActions(ctx) {
     await ctx.startRecord({ client, meeting: M, notes });
   });
   ctx.$("#mDel")?.addEventListener("click", async () => {
+    const id = M.id;
     if (!(await deleteMeeting(ctx, M))) return;
-    if (listCache) listCache = listCache.filter((x) => x.id !== M.id);
+    if (listCache) listCache = listCache.filter((x) => x.id !== id);
     ctx.go("meetings");
   });
 }
@@ -258,7 +263,7 @@ function rowOf() {
 }
 function queueSave(ctx) { clearTimeout(saveTimer); saveTimer = setTimeout(() => saveNow(ctx), 1200); ctx.$("#savestate").textContent = "Unsaved"; }
 async function saveNow(ctx) {
-  clearTimeout(saveTimer);
+  clearTimeout(saveTimer); saveTimer = null;
   if (!M) return false;
   const { error } = await ctx.supabase.from("meetings").upsert(rowOf());
   if (error) { console.error(error); ctx.$("#savestate").textContent = "Not saved"; return false; }
