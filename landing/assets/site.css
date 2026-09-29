@@ -177,13 +177,6 @@ a{color:inherit}
 .pages{position:absolute;left:24%;top:17%;width:63%;height:76%;background:#F4F0E6;border-radius:4px 10px 10px 4px;transform:rotate(-3deg);box-shadow:0 8px 16px rgba(40,30,15,.2)}
 
 /* Pilot (replaces testimonial) */
-.pilot{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:40px;align-items:center;padding:56px 0}
-.pilot-mark{width:140px;height:140px;border-radius:50%;background:var(--brand-soft);display:grid;place-items:center}
-.pilot-mark svg{width:58px;height:58px;stroke:var(--brand);fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
-.pilot blockquote{margin:0;font-family:var(--serif);font-size:clamp(19px,2vw,23px);line-height:1.45;max-width:46ch}
-.pilot .who{margin-top:16px;font-size:14px}
-.pilot .who b{display:block;font-weight:600}
-.pilot .who span{color:var(--muted)}
 
 /* Pricing + FAQ */
 .sec{padding:80px 0}
@@ -244,8 +237,6 @@ a{color:inherit}
   .stage{max-width:640px;padding-top:70px;margin-left:0}
   .glass{transform:none;width:100%}
   .plans{grid-template-columns:minmax(0,1fr)}
-  .pilot{grid-template-columns:minmax(0,1fr)}
-  .pilot-mark{width:96px;height:96px}
   .practical .notebook-scene{max-width:340px}
   .nav-links{display:none}
   .app-shell{grid-template-columns:minmax(0,1fr)}
