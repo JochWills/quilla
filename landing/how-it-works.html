@@ -5,7 +5,7 @@
 <meta name="color-scheme" content="light">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>How it works · Quilla</title>
-<meta name="description" content="How Quilla turns a client meeting into a sealed, compliant Record of Advice: capture, draft, check, sign off and export.">
+<meta name="description" content="How Quilla turns a client meeting into a signed, sealed FAIS Record of Advice: capture the meeting, draft all 13 sections, check for gaps, sign off and export.">
 <link rel="canonical" href="https://quilla.co.za/how-it-works">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://quilla.co.za/how-it-works">
@@ -37,45 +37,218 @@
 </header>
 
 <main>
-<div class="wrap">
-  <section class="page-top" aria-labelledby="pageT">
+<section class="hiw-hero" aria-labelledby="pageT">
+  <div class="wrap">
     <div class="eyebrow">How it works</div>
-    <h1 class="h-display" id="pageT">From meeting to signed record, in five steps.</h1>
-    <p class="lede">Quilla drafts your Record of Advice from what was actually said, shows you what a compliance officer would query, and keeps a sealed copy of what you sign.</p>
-  </section>
-
-  <section class="practical" aria-labelledby="howT">
-    <div>
-      <div class="eyebrow">Built for real advisors</div>
-      <h2 class="h-display" id="howT">Practical. Reliable. Made for you.</h2>
-      <ol class="steps3">
-        <li><div class="sicon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8v6H8z"/><path d="M5 9h14v12H5z"/><path d="M9 14h6"/></svg></div><h3>Add your notes</h3><p>Paste a transcript or your meeting notes into Quilla.</p></li>
-        <li class="sep" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h15M14 7l5 5-5 5"/></svg></li>
-        <li><div class="sicon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M10 13l2 2 3-4"/></svg></div><h3>AI drafts your RoA</h3><p>Quilla structures the content, highlights gaps, and suggests compliant wording.</p></li>
-        <li class="sep" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12h15M14 7l5 5-5 5"/></svg></li>
-        <li><div class="sicon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19l1-4L16 5l3 3L9 18z"/><path d="M14 7l3 3"/></svg></div><h3>Review and finalise</h3><p>You stay in control. Edit, sign off, and export a polished RoA.</p></li>
+    <h1 class="h-display" id="pageT">From a client meeting to a signed Record of Advice.</h1>
+    <p class="lede">You hold the meeting. Quilla turns what was said into a FAIS Record of Advice, shows you what a compliance officer would query, and keeps a sealed copy of what you sign. Here's each step, as it looks in the app.</p>
+    <nav aria-label="Steps">
+      <ol class="hiw-rail">
+        <li><a href="#capture"><span class="dot">1</span><span class="lbl">Capture</span></a></li>
+        <li><a href="#draft"><span class="dot">2</span><span class="lbl">Draft</span></a></li>
+        <li><a href="#check"><span class="dot">3</span><span class="lbl">Check</span></a></li>
+        <li><a href="#sign"><span class="dot">4</span><span class="lbl">Sign off</span></a></li>
+        <li><a href="#export"><span class="dot">5</span><span class="lbl">Export</span></a></li>
       </ol>
-    </div>
-    <div class="notebook-scene" role="img" aria-label="A dark green notebook reading Better advice, brighter futures, beside a pen">
-      <div class="pages"></div>
-      <div class="nb"><span>Better advice.<br>brighter<br>futures.</span></div>
-      <div class="pen"></div>
-    </div>
-  </section>
+    </nav>
+  </div>
+</section>
 
-  <section class="sec steps-detail" aria-labelledby="stepsT" style="padding-top:24px">
-    <h2 class="h-display" id="stepsT">Step by step</h2>
-    <ol class="steps5">
-      <li><span class="n">1</span><div><h3>Capture the meeting</h3><p>Record the meeting in Quilla once your client agrees, upload the audio, import a Teams, Zoom or Google Meet transcript, or paste your own notes. Recordings are transcribed and then deleted, so only the text is kept.</p></div></li>
-      <li><span class="n">2</span><div><h3>Draft all 13 sections</h3><p>Quilla drafts every section of a FAIS Record of Advice from the meeting, and shows the words each section came from. Anything that wasn't discussed is marked "not captured", never filled in.</p></div></li>
-      <li><span class="n">3</span><div><h3>Check it before compliance does</h3><p>Missing fees, unconfirmed replacement costs, an unclear client decision: gaps are flagged beside the record. Fix them, or explain why they don't apply, and check again.</p></div></li>
-      <li><span class="n">4</span><div><h3>Sign off and seal</h3><p>You confirm the record and sign it. Quilla seals a read-only copy with a digital fingerprint. If you change it later, your changes become a new version and the signed one stays exactly as it was.</p></div></li>
-      <li><span class="n">5</span><div><h3>Export for the client file</h3><p>Download a PDF or Word document with your practice name, how each flagged item was resolved and the full history of the record.</p></div></li>
-    </ol>
-    <div class="card-note"><b>What Quilla won't do.</b> It never recommends products, judges suitability or adds facts that aren't in your notes. You review every record, and nothing is final until you sign it.</div>
-    <div class="card-note"><b>Where your data goes.</b> Records are stored encrypted in Ireland and private to your account. Drafting uses Claude, Anthropic's AI, and your notes aren't used to train it. Meeting audio is deleted once it's transcribed. <a href="/privacy">Read the privacy policy</a>.</div>
-  </section>
-</div>
+<!-- 1. Capture -->
+<section class="hiw-step" id="capture" aria-labelledby="s1T">
+  <div class="wrap hiw-grid">
+    <div class="hiw-copy">
+      <div class="hiw-num">01 <span>Capture</span></div>
+      <h2 class="h-display" id="s1T">Bring in the meeting, however it happened.</h2>
+      <p>Start from a client's page or the Meetings screen, then use whatever you have.</p>
+      <ul class="hiw-list">
+        <li><b>Record in Quilla</b> once you confirm the client agreed to be recorded.</li>
+        <li><b>Upload the audio</b> from your phone or laptop.</li>
+        <li><b>Import a transcript</b> from Teams, Zoom or Google Meet (.vtt, .srt, .txt or .docx).</li>
+        <li><b>Or paste your own notes.</b> Short notes work too.</li>
+      </ul>
+      <p class="hiw-foot">Audio is transcribed, then deleted. Only the text is kept. Name the speakers once and the transcript reads naturally.</p>
+    </div>
+    <div class="hiw-stage" aria-hidden="true">
+      <div class="mock">
+        <div class="m-head"><div><div class="m-t">Review meeting</div><div class="m-s">Claire Bennett · Video call · 26 Sep 2026</div></div><span class="m-pill teal">Transcript</span></div>
+        <div class="m-check on"><i></i>The client agreed to this meeting being recorded</div>
+        <div class="m-rec"><span class="rdot"></span><b>Recording</b><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><time>12:48</time><span class="m-btn">Stop</span></div>
+        <div class="m-row"><span class="m-btn">Upload audio</span><span class="m-btn">Upload transcript file</span></div>
+        <div class="m-tx">
+          <p><b>Advisor</b> <time>0:42</time> So the main goal is retiring by 60, with about 70% of your current income?</p>
+          <p><b>Claire</b> <time>0:51</time> Yes, and the kids' university from 2031 is the big one for me.</p>
+          <p><b>Advisor</b> <time>1:06</time> Then let's look at the legacy RA first. You mentioned the fees feel high.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2. Draft -->
+<section class="hiw-step alt" id="draft" aria-labelledby="s2T">
+  <div class="wrap hiw-grid flip">
+    <div class="hiw-copy">
+      <div class="hiw-num">02 <span>Draft</span></div>
+      <h2 class="h-display" id="s2T">All 13 sections, drafted from what was said.</h2>
+      <p>Quilla writes every section of a FAIS Record of Advice in formal, third-person wording: from the client's circumstances and needs to fees, replacement, conflicts and the client's decision.</p>
+      <ul class="hiw-list">
+        <li><b>See where it came from.</b> Each section shows the words from your notes it's based on.</li>
+        <li><b>Nothing is filled in.</b> If something wasn't discussed, it's marked "Not captured".</li>
+        <li><b>Your house style.</b> Set how each section should read in Templates, and add standard wording that's attached automatically.</li>
+        <li><b>Edit freely.</b> Type straight into any section, or use Improve with AI to tidy the wording without adding anything.</li>
+      </ul>
+    </div>
+    <div class="hiw-stage" aria-hidden="true">
+      <div class="mock mock-doc">
+        <div class="m-sec">
+          <div class="m-sh"><span class="n">7</span><b>Recommendation</b><span class="m-pill green">From notes</span></div>
+          <p>The advisor recommended opening a tax-free savings account for the education goal at R3,833 per month, and transferring the client's legacy retirement annuity to a unit trust RA invested in the Northgate Balanced Fund.</p>
+          <div class="m-ev">From your notes: <q>open a TFSA for the education goal at R3,833 pm</q></div>
+          <span class="m-ai"><svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/></svg>Improve with AI</span>
+        </div>
+        <div class="m-sec">
+          <div class="m-sh"><span class="n">9</span><b>Fees and charges disclosed</b><span class="m-pill amber">Partly captured</span></div>
+          <p>An ongoing advice fee of 0.75% and a platform fee of 0.35% were disclosed. An initial fee of 1% applies to TFSA contributions.</p>
+        </div>
+        <div class="m-sec empty">
+          <div class="m-sh"><span class="n">10</span><b>Replacement analysis</b><span class="m-pill grey">Not captured</span></div>
+          <p class="m-blank">Nothing in the notes covers this section.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Check -->
+<section class="hiw-step" id="check" aria-labelledby="s3T">
+  <div class="wrap hiw-grid">
+    <div class="hiw-copy">
+      <div class="hiw-num">03 <span>Check</span></div>
+      <h2 class="h-display" id="s3T">See what compliance would query, before they do.</h2>
+      <p>Alongside the record, Quilla lists what's missing, unclear or unconfirmed, ranked <span class="sev c">critical</span>, <span class="sev i">important</span> or <span class="sev m">minor</span>, and links each item to its section.</p>
+      <ul class="hiw-list">
+        <li><b>Fix it in the record,</b> then mark it addressed with a short note.</li>
+        <li><b>Or mark it not applicable</b> and say why. Your note goes into the record's history.</li>
+        <li><b>Check again</b> after editing. Items you've resolved stay resolved.</li>
+      </ul>
+    </div>
+    <div class="hiw-stage" aria-hidden="true">
+      <div class="mock">
+        <div class="m-head"><div class="m-t">To check before sign-off</div><span class="m-btn">Check again</span></div>
+        <div class="m-counts"><span class="c">1 critical</span><span class="i">1 important</span><span class="r">1 resolved</span></div>
+        <div class="m-gap c">
+          <div class="g-top"><span>Critical</span> · Replacement analysis</div>
+          <p>Termination penalties and costs on the existing RA aren't confirmed.</p>
+          <div class="m-row"><span class="m-btn sm">Mark addressed</span><span class="m-btn sm">Not applicable</span></div>
+        </div>
+        <div class="m-gap i">
+          <div class="g-top"><span>Important</span> · Fees and charges disclosed</div>
+          <p>The initial fee on the RA transfer isn't recorded.</p>
+        </div>
+        <div class="m-gap r">
+          <div class="g-top"><span>Addressed</span> · Risk profile</div>
+          <p>Questionnaire completed in the meeting; result moderately aggressive.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. Sign off -->
+<section class="hiw-step alt" id="sign" aria-labelledby="s4T">
+  <div class="wrap hiw-grid flip">
+    <div class="hiw-copy">
+      <div class="hiw-num">04 <span>Sign off</span></div>
+      <h2 class="h-display" id="s4T">You sign. Quilla seals it.</h2>
+      <p>Nothing is final until you sign. You confirm the declaration, the client's decision, and your name and FSP number.</p>
+      <ul class="hiw-list">
+        <li><b>Open critical items?</b> You can still sign, but you give a written reason, and it's kept with the record.</li>
+        <li><b>Sealed on signing.</b> Each sign-off saves a read-only version with a digital fingerprint (SHA-256) that shows if a copy has been altered.</li>
+        <li><b>Changes make a new version.</b> Reopen the record to edit it. Version 1 stays exactly as you signed it.</li>
+      </ul>
+    </div>
+    <div class="hiw-stage" aria-hidden="true">
+      <div class="mock">
+        <div class="m-head"><div class="m-t">Sign off</div></div>
+        <div class="m-check on"><i></i>I confirm this record accurately reflects the information considered, the products considered and the advice I gave.</div>
+        <div class="m-fields">
+          <div><span>Client's decision</span><div class="m-in">Accepted the advice</div></div>
+          <div><span>Advisor</span><div class="m-in">T. Mahlangu</div></div>
+          <div><span>FSP number</span><div class="m-in">48213</div></div>
+        </div>
+        <div class="m-seal">
+          <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <div><b>Signed off and sealed as version 1</b><span>Fingerprint <code>9f3c2a71e0b4d6c8…</code></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Export -->
+<section class="hiw-step" id="export" aria-labelledby="s5T">
+  <div class="wrap hiw-grid">
+    <div class="hiw-copy">
+      <div class="hiw-num">05 <span>Export</span></div>
+      <h2 class="h-display" id="s5T">A clean record for the client file.</h2>
+      <p>Download the record as a PDF, a Word document or plain text, with your practice details, the client's decision, how each flagged item was resolved and the record's history.</p>
+      <ul class="hiw-list">
+        <li><b>Sealed versions</b> carry an integrity block with the version, sealing time and fingerprint.</li>
+        <li><b>Drafts are watermarked DRAFT,</b> so an unsigned record is never mistaken for a final one.</li>
+        <li><b>A full audit trail:</b> drafting, edits, AI rewrites, resolved items, sign-off and exports are all logged, and never rewritten.</li>
+      </ul>
+    </div>
+    <div class="hiw-stage" aria-hidden="true">
+      <div class="m-paper">
+        <div class="p-top"><b>Record of Advice</b><span>Mahlangu Wealth</span></div>
+        <div class="p-meta"><span>Client <b>Claire Bennett</b></span><span>Date <b>26 Sep 2026</b></span><span>Area <b>Retirement planning</b></span></div>
+        <div class="p-h">1. Client details and circumstances</div><i></i><i class="s"></i>
+        <div class="p-h">7. Recommendation</div><i></i><i></i><i class="s"></i>
+        <div class="p-seal"><b>Sealed version 1</b> · 26 Sep 2026, 15:12<br><code>SHA-256 9f3c2a71e0b4d6c8a5f1…</code></div>
+      </div>
+      <div class="m-dl"><span class="m-btn pri">Download PDF</span><span class="m-btn">Word (.docx)</span><span class="m-btn">.md</span></div>
+      <div class="mock m-log">
+        <div class="m-t">Activity</div>
+        <ul>
+          <li><time>14:02</time>Drafted from meeting notes</li>
+          <li><time>14:09</time>Improved wording of "Fees" with AI</li>
+          <li><time>14:15</time>Resolved: Risk profile</li>
+          <li><time>15:12</time>Signed off · sealed as version 1</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Around the record -->
+<section class="hiw-more" aria-labelledby="moreT">
+  <div class="wrap">
+    <div class="eyebrow">Around every record</div>
+    <h2 class="h-display" id="moreT">Everything else a practice needs.</h2>
+    <div class="hiw-cards">
+      <div><div class="sicon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 2.7-6 6-6s6 2.5 6 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-3-1.7-5.2-4-5.8"/></svg></div><h3>Clients</h3><p>Each client's meetings and records in one place. Start a new record from their page with their details filled in.</p></div>
+      <div><div class="sicon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div><h3>Meetings</h3><p>Every meeting with its transcript, and whether a record has been started from it yet.</p></div>
+      <div><div class="sicon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h7"/><path d="M17 14l3 3-5 5h-3v-3z"/></svg></div><h3>Templates</h3><p>Guidance on how each section should read, and standard wording (like your fee disclosure) added automatically.</p></div>
+      <div><div class="sicon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div><h3>Compliance overview</h3><p>Drafts with open critical items, records signed with open items, and how long each signed record must be kept.</p></div>
+      <div><div class="sicon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/></svg></div><h3>Archive, don't lose</h3><p>Signed records can't be deleted, only archived, so you keep them for the five years FAIS requires.</p></div>
+      <div><div class="sicon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M5 20h14"/></svg></div><h3>Your data</h3><p>Download everything in your account, or one client's data, as a single file. Close your account whenever you like.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- Guardrails -->
+<section class="hiw-rules" aria-labelledby="rulesT">
+  <div class="wrap">
+    <h2 class="h-display" id="rulesT">What Quilla will never do.</h2>
+    <div class="hiw-rules-grid">
+      <div><h3>Give advice</h3><p>It documents the advice you gave. It never recommends products or judges whether they suit the client.</p></div>
+      <div><h3>Invent facts</h3><p>Every draft comes from your notes. Anything missing is flagged for you, never filled in.</p></div>
+      <div><h3>Sign for you</h3><p>You review every record, and nothing is final until you sign it.</p></div>
+    </div>
+    <p class="hiw-data"><b>Where your data goes.</b> Records are stored encrypted in Ireland and are private to your account. Drafting uses Claude, Anthropic's AI, and your notes aren't used to train it. Meeting audio is deleted once it's transcribed. <a href="/privacy">Read the privacy policy</a></p>
+  </div>
+</section>
 
 <section class="cta" aria-labelledby="ctaT">
   <svg class="scene" viewBox="0 0 1440 560" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
