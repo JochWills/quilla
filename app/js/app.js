@@ -249,7 +249,7 @@ async function loadRecords() {
   setRecCount();
 }
 async function loadProfile() {
-  const { data, error } = await supabase.from("profiles").select("full_name, fsp_number, practice_name, template, letterhead").eq("id", session.user.id).single();
+  const { data, error } = await supabase.from("profiles").select("full_name, fsp_number, practice_name, template, letterhead, welcomed_at").eq("id", session.user.id).single();
   if (!error && data) profile = data;
 }
 async function saveProfile(next) {
@@ -426,6 +426,57 @@ async function deleteAccount(password) {
     if (res.ok) return "ok";
     return (await res.json().catch(() => ({}))).error || "error";
   } catch { return "error"; }
+}
+
+/* ---------------- Welcome (first visit) ---------------- */
+// Shown once per account (profiles.welcomed_at), right after sign-up and email confirmation.
+// ?welcome=1 shows it again (for checking). It also asks for name and FSP number if the
+// account doesn't have them yet, since new records are prefilled from them.
+function showWelcome({ exampleOpen = false } = {}) {
+  const first = (profile.full_name || "").trim().split(/\s+/)[0];
+  const needs = !(profile.full_name || "").trim() || !(profile.fsp_number || "").trim();
+  const d = document.createElement("dialog");
+  d.className = "qdialog welcome";
+  d.setAttribute("aria-labelledby", "wlT");
+  d.innerHTML = `<div class="wl-in">
+      <div class="wl-top"><span class="wl-logo">Quilla</span><button type="button" class="st-close" data-wl="skip" aria-label="Close">×</button></div>
+      <h2 id="wlT">Welcome to Quilla${first ? `, ${esc(first)}` : ""}.</h2>
+      <p class="wl-lede">Quilla turns your meeting notes into a FAIS Record of Advice, and shows you what a compliance officer would query before you sign.</p>
+      <ol class="wl-steps">
+        <li><span class="wl-n">1</span><b>Add your meeting notes</b><span>Or paste a Teams, Zoom or Google Meet transcript alongside them.</span></li>
+        <li><span class="wl-n">2</span><b>Review the draft</b><span>All 13 sections, with any gaps flagged for you to fix.</span></li>
+        <li><span class="wl-n">3</span><b>Sign off and export</b><span>A sealed copy, as a PDF or Word document on your letterhead.</span></li>
+      </ol>
+      ${needs ? `<div class="wl-details"><p class="wl-h">Your details <span class="note">(added to every record you create)</span></p>
+        <div class="form-grid">
+          <label class="f"><span>Full name</span><input type="text" id="wl_name" autocomplete="name" value="${esc(profile.full_name || "")}"></label>
+          <label class="f"><span>FSP number</span><input type="text" id="wl_fsp" inputmode="numeric" autocomplete="off" value="${esc(profile.fsp_number || "")}"></label>
+        </div></div>` : ""}
+      <p class="wl-note">${IC.shield}Quilla documents your advice. It never gives advice, never adds facts that aren't in your notes, and nothing is final until you sign.</p>
+      <div class="wl-actions">
+        <button type="button" class="btn btn-primary" data-wl="example">${exampleOpen ? "Continue to the example" : "Try an example meeting"}</button>
+        ${exampleOpen ? "" : `<button type="button" class="btn" data-wl="own">Start with my own notes</button>`}
+        <button type="button" class="linkbtn" data-wl="skip">I'll look around first</button>
+      </div>
+    </div>`;
+  let done = false;
+  const finish = async (choice) => {
+    if (done) return; done = true;
+    const next = { welcomed_at: new Date().toISOString() };
+    const name = d.querySelector("#wl_name")?.value.trim(), fsp = d.querySelector("#wl_fsp")?.value.trim();
+    if (name) next.full_name = name;
+    if (fsp) next.fsp_number = fsp;
+    d.close(); d.remove();
+    await saveProfile(next);
+    if (choice === "example" && !exampleOpen) { if (await canLeave()) { S = blank(); view = "record"; loadExample(); } }
+    else if (choice === "own") newRecord();
+    else if (exampleOpen && S) { Object.assign(S.meta, { adviser: S.meta.adviser || profile.full_name, fsp: S.meta.fsp || profile.fsp_number }); dirty = true; scheduleSave(); renderApp(); }
+  };
+  d.addEventListener("click", (e) => { const b = e.target.closest("[data-wl]"); if (b) finish(b.dataset.wl); });
+  d.addEventListener("cancel", (e) => { e.preventDefault(); finish("skip"); });
+  document.body.appendChild(d);
+  d.showModal();
+  (needs && !(profile.full_name || "").trim() ? d.querySelector("#wl_name") : d.querySelector('[data-wl="example"]')).focus();
 }
 
 /* ---------------- Account settings (popup) ---------------- */
@@ -1502,6 +1553,8 @@ async function startApp() {
     view = "list"; renderApp(); openSettings();
     return;
   }
+  const welcome = !profile.welcomed_at || params.get("welcome") === "1";
+  if (params.has("welcome")) { params.delete("welcome"); const q = params.toString(); history.replaceState(null, "", location.pathname + (q ? `?${q}` : "") + location.hash); }
   if (params.get("example") === "1") {
     history.replaceState(null, "", "/");
     S = blank(); view = "record"; loadExample();
@@ -1510,6 +1563,7 @@ async function startApp() {
   } else {
     view = "list"; routeMode = "replace"; renderApp(); routeMode = "push";
   }
+  if (welcome) showWelcome({ exampleOpen: view === "record" && !!S?.notes });
 }
 supabase.auth.onAuthStateChange((event, s) => {
   if (event === "PASSWORD_RECOVERY") {
