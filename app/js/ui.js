@@ -44,6 +44,14 @@ export function pageHead(title, sub, action) {
   return `<div class="list-head lh-big"><div><h1>${title}</h1><div class="rec-sub">${sub}</div></div>
     ${action ? `<button class="btn btn-primary" id="${action.id}">${action.icon ?? IC.plus}${action.label}</button>` : ""}</div>`;
 }
+// Loading placeholders: shimmering rows shaped like the table that's on its way.
+export function skeletonRows(n = 6) {
+  const w = [62, 48, 70, 55, 66, 44, 58, 50];
+  return `<div class="card sk-card" aria-busy="true"><span class="sr-only" role="status">Loading…</span>${Array.from({ length: n }, (_, i) => `<div class="sk-row" aria-hidden="true"><i class="sk sk-av"></i><i class="sk" style="width:${w[i % w.length] / 2}%"></i><i class="sk sk-s"></i><i class="sk sk-pill"></i></div>`).join("")}</div>`;
+}
+export function skeletonPage(title, sub) {
+  return `${pageHead(title, sub)}<div class="ltools sk-tools" aria-hidden="true"><i class="sk sk-tab"></i><i class="sk sk-tab"></i><i class="sk sk-tab"></i><i class="sk sk-search"></i></div>${skeletonRows()}`;
+}
 // Status tabs: [[key, label, iconHtml, count], ...]
 export function tabsBar(tabs, current, label) {
   return `<div class="ltabs" role="tablist" aria-label="${label}">${tabs.map(([k, l, icon, n]) => `<button class="ltab" role="tab" data-ltab="${k}" aria-selected="${current === k}">${icon || ""}<span>${l}</span>${n === undefined ? "" : `<span class="lcount">${n}</span>`}</button>`).join("")}</div>`;

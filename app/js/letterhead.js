@@ -104,14 +104,14 @@ export function renderLetterheadPane(pane, deps) {
   });
   $("#lhLogoDel").addEventListener("click", () => { delete lh.logo; delete lh.logo_w; delete lh.logo_h; preview(); });
   $("#lhSample").addEventListener("click", async (e) => {
-    const b = e.currentTarget; b.disabled = true; b.textContent = "Preparing…";
+    const b = e.currentTarget; b.disabled = true; b.dataset.busy = ""; b.textContent = "Preparing…";
     try { await deps.samplePdf({ ...read() }, $("#lh_practice").value.trim()); } catch { deps.toast("Couldn't create the sample. Check your connection and try again."); }
-    b.disabled = false; b.textContent = "Download a sample PDF";
+    b.disabled = false; delete b.dataset.busy; b.textContent = "Download a sample PDF";
   });
   $("#lhSave").addEventListener("click", async (e) => {
-    const b = e.currentTarget; b.disabled = true; b.textContent = "Saving…";
+    const b = e.currentTarget; b.disabled = true; b.dataset.busy = ""; b.textContent = "Saving…";
     const next = read(), ok = await deps.saveProfile({ letterhead: next, practice_name: $("#lh_practice").value.trim() });
-    b.disabled = false; b.textContent = "Save letterhead";
+    b.disabled = false; delete b.dataset.busy; b.textContent = "Save letterhead";
     if (ok) { lh = { ...next }; deps.toast("Letterhead saved. It's used on your next export."); }
   });
   preview();

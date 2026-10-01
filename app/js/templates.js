@@ -95,9 +95,9 @@ export function renderTemplates(ctx) {
   $("#content").querySelectorAll("[data-save]").forEach((b) => b.addEventListener("click", async () => {
     const id = b.dataset.save, next = { ...(ctx.profile.template || {}) }, v = valuesOf(id);
     if (v.guidance || v.standard) next[id] = v; else delete next[id];
-    b.disabled = true; b.textContent = "Saving…";
+    b.disabled = true; b.dataset.busy = ""; b.textContent = "Saving…";
     const ok = await ctx.saveProfile({ template: next });
-    b.disabled = false; b.textContent = "Save section";
+    b.disabled = false; delete b.dataset.busy; b.textContent = "Save section";
     if (!ok) return;
     refreshCard(id, true); setTabCounts($("#content"), counts());
     ctx.toast(`${ctx.SECTIONS.find(([k]) => k === id)[1]} saved`);
@@ -108,9 +108,9 @@ export function renderTemplates(ctx) {
       const v = clean(ta.value, ta.dataset.k); if (!v) return;
       (next[ta.dataset.tpl] ||= {})[ta.dataset.k] = v;
     });
-    btn.disabled = true; btn.textContent = "Saving…";
+    btn.disabled = true; btn.dataset.busy = ""; btn.textContent = "Saving…";
     const ok = await ctx.saveProfile({ template: next });
-    btn.disabled = false; btn.textContent = btn.id === "tplSave" ? "Save all" : "Save all sections";
+    btn.disabled = false; delete btn.dataset.busy; btn.textContent = btn.id === "tplSave" ? "Save all" : "Save all sections";
     if (ok) { ctx.$("#savestate").textContent = "Saved"; ctx.toast("Standard wording saved. It applies to your next draft."); renderTemplates(ctx); }
   };
   $("#tplSave").addEventListener("click", (e) => save(e.currentTarget));

@@ -3,7 +3,7 @@
 // Quilla doesn't record or transcribe audio.
 
 import { transcriptLabel } from "./clients.js";
-import { IC, initials, pageHead, tabsBar, bindTabs, setTabCounts, searchBox, sortTh, sortRows, bindSort, rowMenu, kebab } from "./ui.js";
+import { IC, initials, pageHead, skeletonPage, tabsBar, bindTabs, setTabCounts, searchBox, sortTh, sortRows, bindSort, rowMenu, kebab } from "./ui.js";
 
 const KINDS = { in_person: "In person", video: "Video call", phone: "Phone call" };
 const MAMMOTH = ["https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.12.3/mammoth.browser.min.js", "sha384-xqNXvcKbEqifokHcBnB0H32p+OQchhD/T/xJGWCMAW5fC0c0MBf9atO3weoPCT84"];
@@ -21,7 +21,7 @@ let listCache = null, mTab = "all", mQuery = "", mSort = { key: "", dir: 1 };
 export async function renderMeetings(ctx) {
   const seq = ctx.seq();
   if (listCache) drawMeetingsShell(ctx);
-  else ctx.$("#content").innerHTML = `${pageHead("Meetings", "Loading…")}`;
+  else ctx.$("#content").innerHTML = skeletonPage("Meetings", "Log a client meeting with your notes and turn it into a Record of Advice.");
   const { data, error } = await ctx.supabase.from("meetings").select(LIST_COLS).order("meeting_date", { ascending: false }).limit(500);
   if (ctx.seq() !== seq) return;
   if (error) { if (!listCache) ctx.$("#content").innerHTML = `${pageHead("Meetings", "")}<div class="err">Couldn't load meetings. Refresh to try again.</div>`; return; }

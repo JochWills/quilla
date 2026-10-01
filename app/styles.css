@@ -273,7 +273,53 @@ h3.sub{font-size:15px;font-weight:600;margin:0 0 10px}
 
 /* Sign-in */
 .auth-ok{background:var(--green-bg);color:var(--green);border-radius:8px;padding:12px 14px;margin-top:14px;font-size:14px}
-.boot{position:fixed;inset:0;display:grid;place-items:center;color:var(--faint);font-size:14px}
+.boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:var(--bg);animation:qd-fade .3s ease-out .15s both}
+.boot .logo{font-size:38px;color:var(--ink)}
+.boot-bar{width:120px;height:3px;border-radius:3px;background:var(--brand-soft);overflow:hidden}
+.boot-bar i{display:block;width:40%;height:100%;border-radius:3px;background:var(--brand);animation:slide 1.1s ease-in-out infinite}
+@keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+
+/* Loading: skeletons, top bar, busy buttons, screen entrance */
+.sk{display:block;height:10px;border-radius:6px;background:linear-gradient(90deg,#E9EFEE 0%,#F5F8F7 40%,#E9EFEE 80%) 0 0/300% 100%;animation:shimmer 1.4s linear infinite}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-50% 0}}
+.sk-card{overflow:hidden}
+.sk-row{display:flex;align-items:center;gap:16px;padding:17px 18px;border-bottom:1px solid var(--rule)}
+.sk-row:last-child{border-bottom:none}
+.sk-row:nth-child(n+4){opacity:.75}.sk-row:nth-child(n+6){opacity:.5}
+.sk-av{width:30px;height:30px;border-radius:50%;flex:none}
+.sk-s{width:14%;margin-left:auto}
+.sk-pill{width:64px;height:20px;border-radius:5px}
+.sk-tools{gap:10px}
+.sk-tab{width:96px;height:30px;border-radius:8px}
+.sk-search{width:240px;height:36px;border-radius:8px;margin-left:auto}
+.sk-line{height:12px;margin:8px 0;width:80%}.sk-line.s{width:55%}
+@media (max-width:640px){.sk-s,.sk-search{display:none}}
+.loadbar{position:fixed;top:0;left:0;right:0;height:3px;z-index:100;pointer-events:none;opacity:0;transform-origin:left;transform:scaleX(0);background:var(--brand)}
+.loadbar.on{opacity:1;animation:loadbar 8s cubic-bezier(.1,.6,.2,1) forwards}
+.loadbar.done{animation:none;transform:scaleX(1);opacity:0;transition:transform .2s ease-out,opacity .3s ease .15s}
+@keyframes loadbar{from{transform:scaleX(0)}to{transform:scaleX(.9)}}
+.btn[data-busy]:disabled{opacity:.75;cursor:progress}
+.btn[data-busy]::before{content:"";width:14px;height:14px;flex:none;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:spin .7s linear infinite}
+.btn-xs[data-busy]::before{width:11px;height:11px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.content.enter{animation:enter .28s cubic-bezier(.2,.7,.3,1)}
+@keyframes enter{from{opacity:0;transform:translateY(6px)}}
+
+/* Drafting progress */
+.drafting{margin-top:16px;padding:16px 18px;border:1px solid var(--rule);border-radius:12px;background:linear-gradient(180deg,var(--brand-tint),var(--surface));animation:enter .25s ease-out}
+.dr-head{display:flex;align-items:baseline;gap:10px}
+.dr-head b{font-size:15px;font-weight:600}
+.dr-head .btn{margin-left:auto;align-self:center}
+.dr-bar{height:4px;border-radius:4px;background:var(--brand-soft);overflow:hidden;margin:12px 0 14px}
+.dr-bar i{display:block;width:35%;height:100%;border-radius:4px;background:var(--brand);animation:slide 1.4s ease-in-out infinite}
+.dr-steps{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:14px;color:var(--faint)}
+.dr-steps li{display:flex;align-items:center;gap:10px;transition:color .3s}
+.dr-steps li.now{color:var(--ink);font-weight:500}
+.dr-steps li.done{color:var(--muted)}
+.dr-dot{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--rule-strong);flex:none;display:grid;place-items:center;transition:all .3s}
+.dr-steps li.now .dr-dot{border-color:var(--brand);border-right-color:transparent;animation:spin .8s linear infinite}
+.dr-steps li.done .dr-dot{background:var(--green);border-color:var(--green)}
+.dr-steps li.done .dr-dot::after{content:"";width:6px;height:3.5px;border:solid #fff;border-width:0 0 1.6px 1.6px;transform:translateY(-1px) rotate(-45deg)}
 
 /* Wordmark (same as landing) */
 .logo{font-family:var(--logo);font-size:31px;font-weight:460;font-variation-settings:"opsz" 72;letter-spacing:-.012em;color:#18262C;text-decoration:none;line-height:1}

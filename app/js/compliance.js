@@ -2,7 +2,7 @@
 // sign-off, what was signed with critical items open, which signed records were never
 // sealed, and how long signed records must be kept.
 
-import { IC, initials, pageHead, tabsBar, bindTabs, searchBox } from "./ui.js";
+import { IC, initials, pageHead, skeletonPage, tabsBar, bindTabs, searchBox } from "./ui.js";
 
 const STALE_DAYS = 14;
 const KEEP_YEARS = 5; // FAIS: keep records of advice for at least five years
@@ -14,7 +14,7 @@ export async function renderCompliance(ctx) {
   const seq = ctx.seq();
   shown = "";
   if (cache) paint(ctx, cache.recs, cache.vers);
-  else ctx.$("#content").innerHTML = pageHead("Compliance", "Loading…");
+  else ctx.$("#content").innerHTML = skeletonPage("Compliance", "What needs your attention across your records, and how long to keep them.");
   const [{ data: recs, error }, { data: vers }] = await Promise.all([
     ctx.supabase.from("records").select("id, client_name, advice_area, meeting_date, status, updated_at, archived_at, gaps:data->gaps, signoff:data->signoff").order("updated_at", { ascending: false }).limit(1000),
     ctx.supabase.from("record_versions").select("record_id, version, signed_at").order("version", { ascending: false }),

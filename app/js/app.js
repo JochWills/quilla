@@ -14,7 +14,7 @@ import { renderMeetings, renderMeeting, flushMeeting } from "./meetings.js";
 import { renderTemplates } from "./templates.js";
 import { renderCompliance } from "./compliance.js";
 import { initControls, openPop } from "./controls.js";
-import { IC, initials, rowMenu } from "./ui.js";
+import { IC, initials, rowMenu, skeletonPage } from "./ui.js";
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // The landing site's "Sign out" link (no session of its own) points here with ?signout=1.
@@ -168,6 +168,7 @@ let tab = "notes"; // notes | document | signoff | activity
 let authMode = /[?&](signup|example)=1\b/.test(location.search) ? "signup" : "signin";
 let busy = null; // AbortController for the in-flight AI call
 let session = null;
+let lastScreen = "";
 let records = []; // list rows: {id, client_name, advice_area, meeting_date, status, updated_at}
 let dirty = false;
 const improveUndo = {};
@@ -286,7 +287,18 @@ async function save() {
 /* ---------------- App render ---------------- */
 const NAV_OF = { list: "list", record: "list", clients: "clients", client: "clients", meetings: "meetings", meeting: "meetings", templates: "", compliance: "compliance" };
 let renderSeq = 0; // bumps on every screen change; a background refresh repaints only if it still matches
+// Thin bar across the top of the page while a screen's data is on its way.
+let barTimer = null;
+function loadingBar(on) {
+  const b = $("#loadbar"); clearTimeout(barTimer);
+  if (on) { barTimer = setTimeout(() => b.classList.add("on"), 120); return; } // skip it for quick loads
+  if (b.classList.contains("on")) { b.classList.add("done"); barTimer = setTimeout(() => b.classList.remove("on", "done"), 350); }
+}
+// Each new screen eases in; repaints within a screen don't.
+function enterScreen() { const c = $("#content"); c.classList.remove("enter"); void c.offsetWidth; c.classList.add("enter"); }
 function renderApp() {
+  const screen = `${view}:${view === "record" ? S?.id ?? "new" : viewParam ?? ""}`;
+  if (screen !== lastScreen) { lastScreen = screen; enterScreen(); }
   renderSeq++; leaveGuard = null; $("#savestate").textContent = view === "record" ? $("#savestate").textContent : "";
   $("#navRecords").setAttribute("aria-current", NAV_OF[view] === "list" ? "page" : "false");
   document.querySelectorAll("[data-nav]").forEach((b) => b.setAttribute("aria-current", NAV_OF[view] === b.dataset.nav ? "page" : "false"));
@@ -507,9 +519,9 @@ function openSettings(section = "profile") {
         <div class="cap-foot"><button class="btn btn-primary btn-sm" id="saveProfileBtn">Save profile</button></div>`;
       d.querySelector("#p_name").value = profile.full_name || ""; d.querySelector("#p_fsp").value = profile.fsp_number || ""; d.querySelector("#p_practice").value = profile.practice_name || "";
       d.querySelector("#saveProfileBtn").addEventListener("click", async (e) => {
-        const btn = e.currentTarget; btn.disabled = true; btn.textContent = "Saving…";
+        const btn = e.currentTarget; btn.disabled = true; btn.dataset.busy = ""; btn.textContent = "Saving…";
         const ok = await saveProfile({ full_name: d.querySelector("#p_name").value.trim(), fsp_number: d.querySelector("#p_fsp").value.trim(), practice_name: d.querySelector("#p_practice").value.trim() });
-        btn.disabled = false; btn.textContent = "Save profile";
+        btn.disabled = false; delete btn.dataset.busy; btn.textContent = "Save profile";
         if (ok) toast("Profile saved");
       });
       d.querySelector("#p_name").focus();
@@ -531,17 +543,17 @@ function openSettings(section = "profile") {
           <div id="delMsg" aria-live="polite"></div>
         </div>`;
       const dl = d.querySelector("#dlAll");
-      dl.addEventListener("click", async () => { dl.disabled = true; dl.textContent = "Preparing…"; await exportAllData(); dl.disabled = false; dl.textContent = "Download all my data"; });
+      dl.addEventListener("click", async () => { dl.disabled = true; dl.dataset.busy = ""; dl.textContent = "Preparing…"; await exportAllData(); dl.disabled = false; delete dl.dataset.busy; dl.textContent = "Download all my data"; });
       const ack = d.querySelector("#delAck"), pw = d.querySelector("#delPw"), del = d.querySelector("#delAcct"), msg = d.querySelector("#delMsg");
       const ready = () => { del.disabled = !(ack.checked && pw.value); };
       ack.addEventListener("change", ready); pw.addEventListener("input", ready);
       del.addEventListener("click", async () => {
         const ok = await confirmBox({ title: "Delete your account?", body: "Your account, clients, records, sealed versions and meetings will be permanently deleted. This can't be undone.", confirmLabel: "Delete everything", danger: true });
         if (!ok) return;
-        del.disabled = true; del.textContent = "Deleting…"; msg.innerHTML = "";
+        del.disabled = true; del.dataset.busy = ""; del.textContent = "Deleting…"; msg.innerHTML = "";
         const result = await deleteAccount(pw.value);
         if (result === "ok") { close(); toast("Your account has been deleted"); await supabase.auth.signOut(); return; }
-        del.textContent = "Delete my account"; ready();
+        delete del.dataset.busy; del.textContent = "Delete my account"; ready();
         msg.innerHTML = `<div class="err">${result === "wrong_password" ? "That password isn't right." : "Couldn't delete your account. Try again, or email joshwilliamsza@icloud.com."}</div>`;
       });
     } else {
@@ -554,9 +566,9 @@ function openSettings(section = "profile") {
         const btn = e.currentTarget, msg = d.querySelector("#pwMsg"), p1 = d.querySelector("#p_pw1").value, p2 = d.querySelector("#p_pw2").value;
         if (p1.length < 8) { msg.innerHTML = `<div class="err">Password must be at least 8 characters.</div>`; return; }
         if (p1 !== p2) { msg.innerHTML = `<div class="err">Passwords don't match.</div>`; return; }
-        btn.disabled = true; btn.textContent = "Saving…";
+        btn.disabled = true; btn.dataset.busy = ""; btn.textContent = "Saving…";
         const { error } = await supabase.auth.updateUser({ password: p1 });
-        btn.disabled = false; btn.textContent = "Update password";
+        btn.disabled = false; delete btn.dataset.busy; btn.textContent = "Update password";
         if (error) { msg.innerHTML = `<div class="err">Couldn't update your password. Try again.</div>`; return; }
         d.querySelector("#p_pw1").value = ""; d.querySelector("#p_pw2").value = ""; msg.innerHTML = "";
         toast("Password updated");
@@ -825,7 +837,9 @@ function initGlobalSearch() {
 async function openRecord(id) {
   if (!(await canLeave())) return;
   if (id !== S.id) {
+    loadingBar(true);
     const { data, error } = await supabase.from("records").select("data").eq("id", id).single();
+    loadingBar(false);
     if (error || !data) {
       toast("Couldn't open that record.");
       if (routeMode === "replace") { view = "list"; renderApp(); } // arrived from an address that no longer works
@@ -1007,9 +1021,20 @@ async function draft(again) {
   if (S.notes.trim().split(/\s+/).length < 25) { st.innerHTML = `<div class="err">Add more detail to the notes first. A useful record needs at least what the client wants, what you recommended and why.</div>`; return; }
   busy = new AbortController(); $("#draftBtn").disabled = true; $("#exampleBtn").disabled = true;
   const started = Date.now();
-  st.innerHTML = `<div class="working" role="status"><span class="pulse" aria-hidden="true"></span><div><b>Drafting the record…</b><div class="note" id="wkTime">This usually takes 20 to 60 seconds.</div></div><button class="btn btn-xs" id="stopBtn" style="margin-left:auto">Stop</button></div>`;
+  // The stages move on by time (the request is one call), so the last one stays open until it's done.
+  const STAGES = [[0, "Reading your notes"], [5, "Drafting the 13 sections"], [30, "Checking for gaps a compliance officer would query"]];
+  st.innerHTML = `<div class="drafting" role="status">
+      <div class="dr-head"><b>Drafting the record</b><span class="note" id="wkTime">This usually takes 20 to 60 seconds.</span><button class="btn btn-xs" id="stopBtn">Stop</button></div>
+      <div class="dr-bar" aria-hidden="true"><i></i></div>
+      <ol class="dr-steps">${STAGES.map(([, t], i) => `<li data-i="${i}"><span class="dr-dot" aria-hidden="true"></span>${t}</li>`).join("")}</ol>
+    </div>`;
   $("#stopBtn").addEventListener("click", () => busy && busy.abort());
-  const timer = setInterval(() => { const el = $("#wkTime"); if (el) el.textContent = `${Math.round((Date.now() - started) / 1000)}s elapsed`; }, 1000);
+  const stage = () => {
+    const secs = (Date.now() - started) / 1000, cur = STAGES.filter(([t]) => secs >= t).length - 1;
+    st.querySelectorAll(".dr-steps li").forEach((li) => { const i = +li.dataset.i; li.className = i < cur ? "done" : i === cur ? "now" : ""; });
+    const el = $("#wkTime"); if (el && secs >= 1) el.textContent = `${Math.round(secs)}s`;
+  };
+  stage(); const timer = setInterval(stage, 1000);
   try {
     const raw = await ai("draft", { notes: S.notes, meta: { client: S.meta.client, area: S.meta.area, date: S.meta.date } }, busy.signal);
     const d = normalizeDraft(raw);
@@ -1191,7 +1216,7 @@ function renderSignoff() {
       <p class="note" style="margin:0">${signed && so.version ? `Exports version ${so.version} exactly as sealed` : "Exports the current draft, marked as not signed"}: the record, your sign-off, how each flagged item was resolved and the full history, ready for the client file.</p>
       <div class="exports"><button class="btn btn-sm btn-primary" data-export="pdf">Download PDF</button><button class="btn btn-sm" data-export="docx">Download Word (.docx)</button><button class="btn btn-sm" data-export="md">Text (.md)</button></div>
     </section>
-    <aside class="card"><h3 class="sub">Sealed versions</h3><div id="versions"><p class="note">Loading…</p></div>
+    <aside class="card"><h3 class="sub">Sealed versions</h3><div id="versions" aria-busy="true"><span class="sr-only" role="status">Loading…</span><i class="sk sk-line"></i><i class="sk sk-line s"></i></div>
       <h3 class="sub" style="margin-top:22px">Recent activity</h3><ul class="audit">${S.audit.slice(-6).reverse().map((a) => `<li><time datetime="${esc(a.at)}">${esc(fmtTime(a.at))}</time><span>${esc(a.text)}</span></li>`).join("") || `<li><span class="note">No activity yet.</span></li>`}</ul></aside>
   </div>`;
   const a = $("#s_adviser"), f = $("#s_fsp"); a.value = m.adviser; f.value = m.fsp;
@@ -1216,7 +1241,7 @@ function updateSignBtn() { const b = $("#signBtn"); if (b) b.disabled = !signRea
 async function signOff() {
   if (!signReady() || busy) return;
   const so = S.signoff, c = gapCounts(), btn = $("#signBtn");
-  busy = new AbortController(); btn.disabled = true; btn.textContent = "Sealing…";
+  busy = new AbortController(); btn.disabled = true; btn.dataset.busy = ""; btn.textContent = "Sealing…";
   const before = JSON.stringify({ signoff: so, status: S.status, audit: S.audit, practice: S.meta.practice });
   const fail = (msg) => { const b = JSON.parse(before); Object.assign(so, b.signoff); S.status = b.status; S.audit = b.audit; S.meta.practice = b.practice; busy = null; renderRecord(); toast(msg); };
   // The records row must exist (and be current) before a version can reference it.
@@ -1300,7 +1325,7 @@ const EXPORT_LABEL = { pdf: "PDF", docx: "Word (.docx)", md: "text (.md)" };
 async function exportRecord(kind, versionId, btn) {
   let r = S, seal = null;
   const which = versionId ? ["id", versionId] : (locked() && S.signoff.version ? ["version", S.signoff.version] : null);
-  const label = btn?.textContent; if (btn) { btn.disabled = true; btn.textContent = "Preparing…"; }
+  const label = btn?.textContent; if (btn) { btn.disabled = true; btn.dataset.busy = ""; btn.textContent = "Preparing…"; }
   try {
     if (which) {
       const { data, error } = await supabase.from("record_versions").select("version, sha256, signed_at, snapshot").eq("record_id", S.id).eq(which[0], which[1]).single();
@@ -1315,7 +1340,7 @@ async function exportRecord(kind, versionId, btn) {
     log(`Exported ${seal ? `version ${seal.version}` : "draft"} as ${EXPORT_LABEL[kind]}`); dirty = true; scheduleSave(); toast("Download started");
   } catch (e) {
     console.error(e); toast(which ? "Couldn't load the sealed version. Try again." : "Couldn't create the file. Check your connection and try again.");
-  } finally { if (btn) { btn.disabled = false; btn.textContent = label; } }
+  } finally { if (btn) { btn.disabled = false; delete btn.dataset.busy; btn.textContent = label; } }
 }
 
 // Settings → Letterhead → "Download a sample PDF": a short made-up record in the letterhead
@@ -1434,9 +1459,9 @@ function renderAuthForm() {
       const p1 = $("#a_pw1").value, p2 = $("#a_pw2")?.value ?? p1, msg = $("#authMsg"), btn = $("#authBtn");
       if (p1.length < 8) { msg.innerHTML = `<div class="err">Password must be at least 8 characters.</div>`; return; }
       if (p1 !== p2) { msg.innerHTML = `<div class="err">Passwords don't match.</div>`; return; }
-      btn.disabled = true; btn.textContent = "Saving…";
+      btn.disabled = true; btn.dataset.busy = ""; btn.textContent = "Saving…";
       const { error } = await supabase.auth.updateUser({ password: p1 });
-      btn.disabled = false; btn.textContent = "Set password";
+      btn.disabled = false; delete btn.dataset.busy; btn.textContent = "Set password";
       if (error) { msg.innerHTML = `<div class="err">Couldn't update your password. Try again.</div>`; return; }
       toast("Password updated"); startApp();
     });
@@ -1470,10 +1495,10 @@ function renderAuthForm() {
       if (!EMAIL_RE.test(email)) { msg.innerHTML = `<div class="err">Enter a valid email address.</div>`; return; }
       if (p1.length < 8) { msg.innerHTML = `<div class="err">Password must be at least 8 characters.</div>`; return; }
       if (p1 !== p2) { msg.innerHTML = `<div class="err">Passwords don't match.</div>`; return; }
-      btn.disabled = true; btn.textContent = "Creating…";
+      btn.disabled = true; btn.dataset.busy = ""; btn.textContent = "Creating…";
       // Name and FSP number go in as user metadata; the new-user trigger copies them into the profile.
       const { data, error } = await supabase.auth.signUp({ email, password: p1, options: { data: { full_name: fullName, fsp_number: fsp }, emailRedirectTo: location.origin + "/" + location.search } });
-      btn.disabled = false; btn.textContent = "Create account";
+      btn.disabled = false; delete btn.dataset.busy; btn.textContent = "Create account";
       if (error) { msg.innerHTML = `<div class="err">${error.message.includes("registered") ? "That email is already registered. Try signing in instead." : "Couldn't create the account. Try again."}</div>`; return; }
       if (!data.session) msg.innerHTML = `<div class="auth-ok">Check your inbox. We've sent a confirmation link to <b>${esc(email)}</b>.</div>`;
     });
@@ -1495,9 +1520,9 @@ function renderAuthForm() {
       e.preventDefault();
       const email = $("#a_email").value.trim(), msg = $("#authMsg"), btn = $("#authBtn");
       if (!EMAIL_RE.test(email)) { msg.innerHTML = `<div class="err">Enter a valid email address.</div>`; return; }
-      btn.disabled = true; btn.textContent = "Sending…";
+      btn.disabled = true; btn.dataset.busy = ""; btn.textContent = "Sending…";
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.origin + "/" + location.search });
-      btn.disabled = false; btn.textContent = "Send reset link";
+      btn.disabled = false; delete btn.dataset.busy; btn.textContent = "Send reset link";
       msg.innerHTML = error ? `<div class="err">We couldn't send the link. Check the address and try again.</div>` : `<div class="auth-ok">Check your inbox for a link to reset your password for <b>${esc(email)}</b>.</div>`;
     });
     return;
@@ -1523,9 +1548,9 @@ function renderAuthForm() {
     e.preventDefault();
     const email = $("#a_email").value.trim(), pw = $("#a_pw1").value, msg = $("#authMsg"), btn = $("#authBtn");
     if (!EMAIL_RE.test(email)) { msg.innerHTML = `<div class="err">Enter a valid email address.</div>`; return; }
-    btn.disabled = true; btn.textContent = "Signing in…";
+    btn.disabled = true; btn.dataset.busy = ""; btn.textContent = "Signing in…";
     const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
-    btn.disabled = false; btn.textContent = "Sign in";
+    btn.disabled = false; delete btn.dataset.busy; btn.textContent = "Sign in";
     if (error) msg.innerHTML = `<div class="err">Incorrect email or password.</div>`;
   });
 }
@@ -1543,9 +1568,8 @@ async function startApp() {
   $("#boot").hidden = true; $("#auth").hidden = true; $("#app").hidden = false;
   document.title = "Quilla · Advice records";
   renderAcctBtn();
-  await loadProfile(); renderAcctBtn();
-  await loadClients();
-  await loadRecords();
+  $("#content").innerHTML = skeletonPage("Advice records", "View, manage and finalise your Records of Advice.");
+  await Promise.all([loadProfile().then(renderAcctBtn), loadClients(), loadRecords()]);
   const params = new URLSearchParams(location.search);
   if (params.has("signup")) { params.delete("signup"); const q = params.toString(); history.replaceState(null, "", location.pathname + (q ? `?${q}` : "") + location.hash); }
   if (params.get("view") === "account") {

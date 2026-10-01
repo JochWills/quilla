@@ -143,9 +143,9 @@ function newClientDialog(ctx) {
     e.preventDefault();
     const row = readFields("nc_"), msg = d.querySelector("#nc_msg"), btn = d.querySelector("#nc_save");
     if (!row.name) { msg.innerHTML = `<div class="err">Add the client's name.</div>`; d.querySelector("#nc_name").focus(); return; }
-    btn.disabled = true; btn.textContent = "Adding…";
+    btn.disabled = true; btn.dataset.busy = ""; btn.textContent = "Adding…";
     const { data, error } = await ctx.supabase.from("clients").insert(row).select().single();
-    if (error) { btn.disabled = false; btn.textContent = "Add client"; msg.innerHTML = `<div class="err">Couldn't add the client. Try again.</div>`; return; }
+    if (error) { btn.disabled = false; delete btn.dataset.busy; btn.textContent = "Add client"; msg.innerHTML = `<div class="err">Couldn't add the client. Try again.</div>`; return; }
     close(); ctx.toast("Client added"); ctx.go("client", data.id);
   });
   document.body.appendChild(d);
@@ -206,7 +206,7 @@ function drawClient(ctx, id, c, meetings) {
         </section>
         <section class="card" style="padding:22px;margin-top:18px">
           <h3 class="sub">Meetings</h3>
-          ${meetings === null ? `<p class="note" style="margin:0">Loading…</p>` : meetings.length ? `<ul class="plain-list">${meetings.map((m) => `<li><button class="row-link" data-meeting="${esc(m.id)}"><span>${esc(m.title || "Meeting")}<span class="note"> · ${esc(ctx.fmtDate(m.meeting_date))}</span></span><span class="note">${esc(transcriptLabel(m))}</span></button></li>`).join("")}</ul>` : `<p class="note" style="margin:0">No meetings yet.</p>`}
+          ${meetings === null ? `<div aria-busy="true"><span class="sr-only" role="status">Loading…</span><i class="sk sk-line"></i><i class="sk sk-line s"></i></div>` : meetings.length ? `<ul class="plain-list">${meetings.map((m) => `<li><button class="row-link" data-meeting="${esc(m.id)}"><span>${esc(m.title || "Meeting")}<span class="note"> · ${esc(ctx.fmtDate(m.meeting_date))}</span></span><span class="note">${esc(transcriptLabel(m))}</span></button></li>`).join("")}</ul>` : `<p class="note" style="margin:0">No meetings yet.</p>`}
         </section>
       </div>
       <aside class="card">
